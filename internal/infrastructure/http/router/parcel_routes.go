@@ -7,6 +7,8 @@ import (
 	parcelclients "ms-parcel-core/internal/parcel/parcel_core/infrastructure/clients"
 	parcelrepo "ms-parcel-core/internal/parcel/parcel_core/infrastructure/repository"
 	"ms-parcel-core/internal/parcel/parcel_core/usecase"
+	itemrepo "ms-parcel-core/internal/parcel/parcel_item/infrastructure/repository"
+	itemusecase "ms-parcel-core/internal/parcel/parcel_item/usecase"
 	trackingrecorder "ms-parcel-core/internal/parcel/parcel_tracking/infrastructure/recorder"
 	trackingrepo "ms-parcel-core/internal/parcel/parcel_tracking/infrastructure/repository"
 	trackingusecase "ms-parcel-core/internal/parcel/parcel_tracking/usecase"
@@ -30,6 +32,12 @@ func RegisterParcelRoutes(rg *gin.RouterGroup) {
 
 	parcelsHandler := handler.NewParcelHandler(createUC, getUC, registerUC, boardUC, deliverUC, arriveUC, departUC, listUC)
 
+	itemRepo := itemrepo.NewInMemoryParcelItemRepository()
+	addItemUC := itemusecase.NewAddParcelItemUseCase(repo, itemRepo, trkRecorder)
+	listItemsUC := itemusecase.NewListParcelItemsUseCase(repo, itemRepo)
+	deleteItemUC := itemusecase.NewDeleteParcelItemUseCase(repo, itemRepo, trkRecorder)
+	itemsHandler := handler.NewParcelItemHandler(addItemUC, listItemsUC, deleteItemUC)
+
 	listTrackingUC := trackingusecase.NewListTrackingUseCase(trkRepo)
 	trackingHandler := handler.NewParcelTrackingHandler(listTrackingUC)
 
@@ -50,5 +58,9 @@ func RegisterParcelRoutes(rg *gin.RouterGroup) {
 		parcels.POST("/:id/deliver", parcelsHandler.Deliver)
 
 		parcels.GET("/:id/tracking", trackingHandler.ListByParcelID)
+
+		parcels.POST("/:id/items", itemsHandler.Add)
+		parcels.GET("/:id/items", itemsHandler.List)
+		parcels.DELETE("/:id/items/:item_id", itemsHandler.Delete)
 	}
 }
