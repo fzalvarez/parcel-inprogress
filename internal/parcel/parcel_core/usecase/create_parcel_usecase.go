@@ -31,10 +31,11 @@ type CreateParcelInput struct {
 type CreateParcelUseCase struct {
 	repo         port.ParcelRepository
 	tenantConfig port.TenantConfigClient
+	tracking     port.TrackingRecorder
 }
 
-func NewCreateParcelUseCase(repo port.ParcelRepository, tenantConfig port.TenantConfigClient) *CreateParcelUseCase {
-	return &CreateParcelUseCase{repo: repo, tenantConfig: tenantConfig}
+func NewCreateParcelUseCase(repo port.ParcelRepository, tenantConfig port.TenantConfigClient, tracking port.TrackingRecorder) *CreateParcelUseCase {
+	return &CreateParcelUseCase{repo: repo, tenantConfig: tenantConfig, tracking: tracking}
 }
 
 func (u *CreateParcelUseCase) Execute(ctx context.Context, in CreateParcelInput) (uuid.UUID, error) {
@@ -74,5 +75,23 @@ func (u *CreateParcelUseCase) Execute(ctx context.Context, in CreateParcelInput)
 	if err != nil {
 		return uuid.Nil, err
 	}
+
+	if u.tracking != nil {
+		if err := u.tracking.RecordEvent(ctx, in.TenantID, port.TrackingEventDTO{
+			ParcelID:   id.String(),
+			EventType:  port.EventTypeParcelCreated,
+			OccurredAt: time.Now().UTC(),
+			UserID:     in.UserID,
+			UserName:   in.UserName,
+			Metadata: map[string]any{
+				"shipment_type":         string(in.ShipmentType),
+				"origin_office_id":      in.OriginOfficeID,
+				"destination_office_id": in.DestinationOfficeID,
+			},
+		}); err != nil {
+			// TODO: logger
+		}
+	}
+
 	return id, nil
 }
