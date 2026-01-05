@@ -29,13 +29,14 @@ type CreateParcelInput struct {
 }
 
 type CreateParcelUseCase struct {
-	repo         port.ParcelRepository
-	tenantConfig port.TenantConfigClient
-	tracking     port.TrackingRecorder
+	repo            port.ParcelRepository
+	tenantConfig    port.TenantConfigClient
+	tracking        port.TrackingRecorder
+	optionsProvider port.TenantOptionsProvider
 }
 
-func NewCreateParcelUseCase(repo port.ParcelRepository, tenantConfig port.TenantConfigClient, tracking port.TrackingRecorder) *CreateParcelUseCase {
-	return &CreateParcelUseCase{repo: repo, tenantConfig: tenantConfig, tracking: tracking}
+func NewCreateParcelUseCase(repo port.ParcelRepository, tenantConfig port.TenantConfigClient, tracking port.TrackingRecorder, optionsProvider port.TenantOptionsProvider) *CreateParcelUseCase {
+	return &CreateParcelUseCase{repo: repo, tenantConfig: tenantConfig, tracking: tracking, optionsProvider: optionsProvider}
 }
 
 func (u *CreateParcelUseCase) Execute(ctx context.Context, in CreateParcelInput) (uuid.UUID, error) {
@@ -52,23 +53,52 @@ func (u *CreateParcelUseCase) Execute(ctx context.Context, in CreateParcelInput)
 	// TODO: consultar flags reales desde TENANT-CONFIG si aplica para este flujo.
 	_, _ = u.tenantConfig.IsEnabled(ctx, in.TenantID, "parcel_core.create")
 
-	h := sha256.Sum256([]byte(in.PackageKey))
-	hashHex := hex.EncodeToString(h[:])
+	defaults := port.ParcelOptions{
+		RequirePackageKey:       true,
+		UsePriceTable:           true,
+		AllowManualPrice:        false,
+		AllowOverridePriceTable: true,
+		AllowPayInDestination:   false,
+	}
+	opts := defaults
+	if u.optionsProvider != nil {
+		if o, err := u.optionsProvider.GetParcelOptions(ctx, in.TenantID); err == nil {
+			opts = o
+		} else {
+			// TODO: logger
+		}
+	}
 
 	p := domain.Parcel{
-		ID:                   uuid.NewString(),
-		TenantID:             in.TenantID,
-		OriginOfficeID:       in.OriginOfficeID,
-		DestinationOfficeID:  in.DestinationOfficeID,
-		SenderPersonID:       in.SenderPersonID,
-		RecipientPersonID:    in.RecipientPersonID,
-		ShipmentType:         in.ShipmentType,
-		Notes:                in.Notes,
-		PackageKeyHashSHA256: hashHex,
-		Status:               domain.ParcelStatusCreated,
-		CreatedByUserID:      in.UserID,
-		CreatedByUserName:    in.UserName,
-		CreatedAt:            time.Now().UTC(),
+		ID:                  uuid.NewString(),
+		TenantID:            in.TenantID,
+		OriginOfficeID:      in.OriginOfficeID,
+		DestinationOfficeID: in.DestinationOfficeID,
+		SenderPersonID:      in.SenderPersonID,
+		RecipientPersonID:   in.RecipientPersonID,
+		ShipmentType:        in.ShipmentType,
+		Notes:               in.Notes,
+		Status:              domain.ParcelStatusCreated,
+		CreatedByUserID:     in.UserID,
+		CreatedByUserName:   in.UserName,
+		CreatedAt:           time.Now().UTC(),
+	}
+
+	// Validación package_key/confirmación existente, condicionada por flag
+	if opts.RequirePackageKey {
+		if strings.TrimSpace(in.PackageKey) == "" {
+			return uuid.Nil, apperror.NewBadRequest("validation_error", "package_key requerido", map[string]any{"field": "package_key"})
+		}
+		h := sha256.Sum256([]byte(in.PackageKey))
+		p.PackageKeyHashSHA256 = hex.EncodeToString(h[:])
+	} else {
+		// Si no requiere package_key, permitir vacío y solo hashear si viene
+		if strings.TrimSpace(in.PackageKey) != "" {
+			h := sha256.Sum256([]byte(in.PackageKey))
+			p.PackageKeyHashSHA256 = hex.EncodeToString(h[:])
+		} else {
+			p.PackageKeyHashSHA256 = ""
+		}
 	}
 
 	id, err := u.repo.Create(ctx, p)

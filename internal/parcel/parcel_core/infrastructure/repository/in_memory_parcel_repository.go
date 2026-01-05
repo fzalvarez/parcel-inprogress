@@ -15,13 +15,13 @@ import (
 
 type InMemoryParcelRepository struct {
 	mu   sync.Mutex
-	data map[uuid.UUID]domain.Parcel
+	data map[string]map[uuid.UUID]domain.Parcel // tenantID -> (parcelID -> Parcel)
 }
 
 var _ port.ParcelRepository = (*InMemoryParcelRepository)(nil)
 
 func NewInMemoryParcelRepository() *InMemoryParcelRepository {
-	return &InMemoryParcelRepository{data: map[uuid.UUID]domain.Parcel{}}
+	return &InMemoryParcelRepository{data: map[string]map[uuid.UUID]domain.Parcel{}}
 }
 
 func (r *InMemoryParcelRepository) Create(ctx context.Context, p domain.Parcel) (uuid.UUID, error) {
@@ -38,7 +38,11 @@ func (r *InMemoryParcelRepository) Create(ctx context.Context, p domain.Parcel) 
 	if r.data == nil {
 		return uuid.Nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
-	r.data[id] = p
+	if _, ok := r.data[p.TenantID]; !ok {
+		r.data[p.TenantID] = map[uuid.UUID]domain.Parcel{}
+	}
+
+	r.data[p.TenantID][id] = p
 	return id, nil
 }
 
@@ -52,12 +56,13 @@ func (r *InMemoryParcelRepository) GetByID(ctx context.Context, tenantID string,
 		return nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
 
-	p, ok := r.data[id]
+	byTenant, ok := r.data[tenantID]
 	if !ok {
 		return nil, nil
 	}
-	if p.TenantID != tenantID {
-		// No filtrar existencia entre tenants
+
+	p, ok := byTenant[id]
+	if !ok {
 		return nil, nil
 	}
 
@@ -76,12 +81,13 @@ func (r *InMemoryParcelRepository) UpdateRegistered(ctx context.Context, tenantI
 	if r.data == nil {
 		return nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
-
-	p, ok := r.data[id]
+	byTenant, ok := r.data[tenantID]
 	if !ok {
 		return nil, nil
 	}
-	if p.TenantID != tenantID {
+
+	p, ok := byTenant[id]
+	if !ok {
 		return nil, nil
 	}
 
@@ -89,7 +95,9 @@ func (r *InMemoryParcelRepository) UpdateRegistered(ctx context.Context, tenantI
 	p.RegisteredAt = &registeredAtUTC
 	// TODO: guardar también quién registró si se requiere en el futuro.
 
-	r.data[id] = p
+	byTenant[id] = p
+	r.data[tenantID] = byTenant
+
 	cp := p
 	return &cp, nil
 }
@@ -103,12 +111,13 @@ func (r *InMemoryParcelRepository) UpdateBoarded(ctx context.Context, tenantID s
 	if r.data == nil {
 		return nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
-
-	p, ok := r.data[id]
+	byTenant, ok := r.data[tenantID]
 	if !ok {
 		return nil, nil
 	}
-	if p.TenantID != tenantID {
+
+	p, ok := byTenant[id]
+	if !ok {
 		return nil, nil
 	}
 
@@ -119,7 +128,9 @@ func (r *InMemoryParcelRepository) UpdateBoarded(ctx context.Context, tenantID s
 	p.BoardedDepartureAt = departureAt
 	p.BoardedByUserID = boardedByUserID
 
-	r.data[id] = p
+	byTenant[id] = p
+	r.data[tenantID] = byTenant
+
 	cp := p
 	return &cp, nil
 }
@@ -133,12 +144,13 @@ func (r *InMemoryParcelRepository) UpdateDelivered(ctx context.Context, tenantID
 	if r.data == nil {
 		return nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
-
-	p, ok := r.data[id]
+	byTenant, ok := r.data[tenantID]
 	if !ok {
 		return nil, nil
 	}
-	if p.TenantID != tenantID {
+
+	p, ok := byTenant[id]
+	if !ok {
 		return nil, nil
 	}
 
@@ -146,7 +158,9 @@ func (r *InMemoryParcelRepository) UpdateDelivered(ctx context.Context, tenantID
 	p.DeliveredAt = &deliveredAtUTC
 	p.DeliveredByUserID = deliveredByUserID
 
-	r.data[id] = p
+	byTenant[id] = p
+	r.data[tenantID] = byTenant
+
 	cp := p
 	return &cp, nil
 }
@@ -160,12 +174,13 @@ func (r *InMemoryParcelRepository) UpdateArrivedDestination(ctx context.Context,
 	if r.data == nil {
 		return nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
-
-	p, ok := r.data[id]
+	byTenant, ok := r.data[tenantID]
 	if !ok {
 		return nil, nil
 	}
-	if p.TenantID != tenantID {
+
+	p, ok := byTenant[id]
+	if !ok {
 		return nil, nil
 	}
 
@@ -173,7 +188,9 @@ func (r *InMemoryParcelRepository) UpdateArrivedDestination(ctx context.Context,
 	p.ArrivedAt = &arrivedAtUTC
 	p.ArrivedByUserID = arrivedByUserID
 
-	r.data[id] = p
+	byTenant[id] = p
+	r.data[tenantID] = byTenant
+
 	cp := p
 	return &cp, nil
 }
@@ -187,12 +204,13 @@ func (r *InMemoryParcelRepository) UpdateInTransit(ctx context.Context, tenantID
 	if r.data == nil {
 		return nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
-
-	p, ok := r.data[id]
+	byTenant, ok := r.data[tenantID]
 	if !ok {
 		return nil, nil
 	}
-	if p.TenantID != tenantID {
+
+	p, ok := byTenant[id]
+	if !ok {
 		return nil, nil
 	}
 
@@ -205,7 +223,9 @@ func (r *InMemoryParcelRepository) UpdateInTransit(ctx context.Context, tenantID
 		p.BoardedVehicleID = vehicleID
 	}
 
-	r.data[id] = p
+	byTenant[id] = p
+	r.data[tenantID] = byTenant
+
 	cp := p
 	return &cp, nil
 }
@@ -220,11 +240,13 @@ func (r *InMemoryParcelRepository) ListByFilters(ctx context.Context, tenantID s
 		return nil, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
 
+	byTenant, ok := r.data[tenantID]
+	if !ok {
+		return []domain.Parcel{}, nil
+	}
+
 	out := make([]domain.Parcel, 0)
-	for _, p := range r.data {
-		if p.TenantID != tenantID {
-			continue
-		}
+	for _, p := range byTenant {
 		if f.Status != nil && p.Status != *f.Status {
 			continue
 		}
@@ -237,6 +259,18 @@ func (r *InMemoryParcelRepository) ListByFilters(ctx context.Context, tenantID s
 			continue
 		}
 		if f.DestinationOfficeID != nil && p.DestinationOfficeID != *f.DestinationOfficeID {
+			continue
+		}
+		if f.SenderPersonID != nil && p.SenderPersonID != *f.SenderPersonID {
+			continue
+		}
+		if f.RecipientPersonID != nil && p.RecipientPersonID != *f.RecipientPersonID {
+			continue
+		}
+		if f.FromCreatedAt != nil && p.CreatedAt.Before(f.FromCreatedAt.UTC()) {
+			continue
+		}
+		if f.ToCreatedAt != nil && p.CreatedAt.After(f.ToCreatedAt.UTC()) {
 			continue
 		}
 
@@ -256,11 +290,13 @@ func (r *InMemoryParcelRepository) List(ctx context.Context, tenantID string, f 
 		return nil, 0, apperror.NewInternal("internal_error", "repositorio no inicializado", nil)
 	}
 
+	byTenant, ok := r.data[tenantID]
+	if !ok {
+		return []domain.Parcel{}, 0, nil
+	}
+
 	filtered := make([]domain.Parcel, 0)
-	for _, p := range r.data {
-		if p.TenantID != tenantID {
-			continue
-		}
+	for _, p := range byTenant {
 		if f.Status != nil && p.Status != *f.Status {
 			continue
 		}

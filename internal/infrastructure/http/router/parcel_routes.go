@@ -4,24 +4,32 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"ms-parcel-core/internal/infrastructure/http/handler"
-	parcelclients "ms-parcel-core/internal/parcel/parcel_core/infrastructure/clients"
 	parcelrepo "ms-parcel-core/internal/parcel/parcel_core/infrastructure/repository"
+	coreport "ms-parcel-core/internal/parcel/parcel_core/port"
 	"ms-parcel-core/internal/parcel/parcel_core/usecase"
+	docrepo "ms-parcel-core/internal/parcel/parcel_documents/infrastructure/repository"
+	docusecase "ms-parcel-core/internal/parcel/parcel_documents/usecase"
 	itemrepo "ms-parcel-core/internal/parcel/parcel_item/infrastructure/repository"
 	itemusecase "ms-parcel-core/internal/parcel/parcel_item/usecase"
+	paymentrepo "ms-parcel-core/internal/parcel/parcel_payment/infrastructure/repository"
+	paymentusecase "ms-parcel-core/internal/parcel/parcel_payment/usecase"
 	trackingrecorder "ms-parcel-core/internal/parcel/parcel_tracking/infrastructure/recorder"
 	trackingrepo "ms-parcel-core/internal/parcel/parcel_tracking/infrastructure/repository"
 	trackingusecase "ms-parcel-core/internal/parcel/parcel_tracking/usecase"
 )
 
-func RegisterParcelRoutes(rg *gin.RouterGroup) {
-	repo := parcelrepo.NewInMemoryParcelRepository()
-	tenantConfig := parcelclients.NewTenantConfigStubClient()
-
-	trkRepo := trackingrepo.NewInMemoryTrackingRepository()
+func RegisterParcelRoutesWithDeps(
+	rg *gin.RouterGroup,
+	repo *parcelrepo.InMemoryParcelRepository,
+	trkRepo *trackingrepo.InMemoryTrackingRepository,
+	itemRepo *itemrepo.InMemoryParcelItemRepository,
+	payRepo *paymentrepo.InMemoryParcelPaymentRepository,
+	tenantConfig coreport.TenantConfigClient,
+	tenantOptionsProvider coreport.TenantOptionsProvider,
+) {
 	trkRecorder := trackingrecorder.NewTrackingRecorderAdapter(trkRepo)
 
-	createUC := usecase.NewCreateParcelUseCase(repo, tenantConfig, trkRecorder)
+	createUC := usecase.NewCreateParcelUseCase(repo, tenantConfig, trkRecorder, tenantOptionsProvider)
 	getUC := usecase.NewGetParcelUseCase(repo)
 	listUC := usecase.NewListParcelsUseCase(repo)
 	registerUC := usecase.NewRegisterParcelUseCase(repo, trkRecorder)
@@ -32,22 +40,31 @@ func RegisterParcelRoutes(rg *gin.RouterGroup) {
 
 	parcelsHandler := handler.NewParcelHandler(createUC, getUC, registerUC, boardUC, deliverUC, arriveUC, departUC, listUC)
 
-	itemRepo := itemrepo.NewInMemoryParcelItemRepository()
-	addItemUC := itemusecase.NewAddParcelItemUseCase(repo, itemRepo, trkRecorder)
+	addItemUC := itemusecase.NewAddParcelItemUseCase(repo, itemRepo, trkRecorder, tenantOptionsProvider)
 	listItemsUC := itemusecase.NewListParcelItemsUseCase(repo, itemRepo)
 	deleteItemUC := itemusecase.NewDeleteParcelItemUseCase(repo, itemRepo, trkRecorder)
 	itemsHandler := handler.NewParcelItemHandler(addItemUC, listItemsUC, deleteItemUC)
 
+	upsertPayUC := paymentusecase.NewUpsertParcelPaymentUseCase(repo, payRepo, tenantOptionsProvider)
+	getPayUC := paymentusecase.NewGetParcelPaymentUseCase(payRepo)
+	markPaidUC := paymentusecase.NewMarkPaidParcelPaymentUseCase(repo, payRepo, tenantOptionsProvider)
+	paymentHandler := handler.NewParcelPaymentHandler(upsertPayUC, getPayUC, markPaidUC)
+
 	listTrackingUC := trackingusecase.NewListTrackingUseCase(trkRepo)
 	trackingHandler := handler.NewParcelTrackingHandler(listTrackingUC)
+
+	// Summary
+	summaryUC := usecase.NewGetParcelSummaryUseCase(repo, itemRepo, payRepo, trkRepo)
+	summaryHandler := handler.NewParcelSummaryHandler(summaryUC)
+
+	printRepo := docrepo.NewInMemoryPrintRepository()
+	registerPrintUC := docusecase.NewRegisterPrintUseCase(repo, printRepo, tenantOptionsProvider)
+	docsHandler := handler.NewParcelDocumentsHandler(registerPrintUC, printRepo)
 
 	parcels := rg.Group("/parcels")
 	{
 		parcels.GET("", parcelsHandler.List)
-		parcels.GET("/", parcelsHandler.List)
-
 		parcels.POST("", parcelsHandler.Create)
-		parcels.POST("/", parcelsHandler.Create)
 
 		parcels.GET("/:id", parcelsHandler.GetByID)
 
@@ -62,5 +79,14 @@ func RegisterParcelRoutes(rg *gin.RouterGroup) {
 		parcels.POST("/:id/items", itemsHandler.Add)
 		parcels.GET("/:id/items", itemsHandler.List)
 		parcels.DELETE("/:id/items/:item_id", itemsHandler.Delete)
+
+		parcels.PUT("/:id/payment", paymentHandler.Upsert)
+		parcels.GET("/:id/payment", paymentHandler.Get)
+		parcels.POST("/:id/payment/mark-paid", paymentHandler.MarkPaid)
+
+		parcels.GET("/:id/summary", summaryHandler.Get)
+
+		parcels.POST("/:id/documents/print", docsHandler.RegisterPrint)
+		parcels.GET("/:id/documents/prints", docsHandler.ListPrints)
 	}
 }

@@ -28,13 +28,14 @@ type AddParcelItemInput struct {
 }
 
 type AddParcelItemUseCase struct {
-	parcelReader coreport.ParcelReader
-	repo         port.ParcelItemRepository
-	tracking     coreport.TrackingRecorder
+	parcelReader    coreport.ParcelReader
+	repo            port.ParcelItemRepository
+	tracking        coreport.TrackingRecorder
+	optionsProvider coreport.TenantOptionsProvider
 }
 
-func NewAddParcelItemUseCase(parcelReader coreport.ParcelReader, repo port.ParcelItemRepository, tracking coreport.TrackingRecorder) *AddParcelItemUseCase {
-	return &AddParcelItemUseCase{parcelReader: parcelReader, repo: repo, tracking: tracking}
+func NewAddParcelItemUseCase(parcelReader coreport.ParcelReader, repo port.ParcelItemRepository, tracking coreport.TrackingRecorder, optionsProvider coreport.TenantOptionsProvider) *AddParcelItemUseCase {
+	return &AddParcelItemUseCase{parcelReader: parcelReader, repo: repo, tracking: tracking, optionsProvider: optionsProvider}
 }
 
 func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInput) (uuid.UUID, error) {
@@ -58,7 +59,28 @@ func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInpu
 		return uuid.Nil, apperror.New("invalid_state", "no se pueden modificar items en este estado", map[string]any{"allowed": []coredomain.ParcelStatus{coredomain.ParcelStatusCreated, coredomain.ParcelStatusRegistered}, "actual": p.Status}, 409)
 	}
 
-	// TODO: validar desde TENANT-CONFIG si el precio manual está permitido.
+	defaults := coreport.ParcelOptions{
+		RequirePackageKey:       true,
+		UsePriceTable:           true,
+		AllowManualPrice:        false,
+		AllowOverridePriceTable: true,
+		AllowPayInDestination:   false,
+	}
+	opts := defaults
+	if u.optionsProvider != nil {
+		if o, err := u.optionsProvider.GetParcelOptions(ctx, in.TenantID); err == nil {
+			opts = o
+		} else {
+			// TODO: logger
+		}
+	}
+
+	if opts.UsePriceTable && !opts.AllowManualPrice {
+		if in.UnitPrice > 0 {
+			return uuid.Nil, apperror.New("manual_price_disabled", "precio manual deshabilitado", nil, 409)
+		}
+		// TODO: cuando exista tabla real, calcular unit_price automáticamente; override permitido si opts.AllowOverridePriceTable
+	}
 
 	item := domain.ParcelItem{
 		ID:          uuid.NewString(),
