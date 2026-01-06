@@ -42,7 +42,7 @@ func RegisterParcelRoutesWithDeps(
 	arriveUC := usecase.NewArriveParcelUseCase(repo, trkRecorder)
 	deliverUC := usecase.NewDeliverParcelUseCase(repo, trkRecorder)
 
-	parcelsHandler := handler.NewParcelHandler(createUC, getUC, registerUC, boardUC, deliverUC, arriveUC, departUC, listUC)
+	parcelsHandler := handler.NewParcelHandler(createUC, listUC, getUC, registerUC, boardUC, departUC, arriveUC, deliverUC)
 
 	priceRuleRepo := pricingrepo.NewInMemoryPriceRuleRepository()
 	createRuleUC := pricingusecase.NewCreatePriceRuleUseCase(priceRuleRepo)

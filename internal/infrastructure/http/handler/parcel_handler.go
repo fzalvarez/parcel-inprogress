@@ -14,6 +14,38 @@ import (
 	"github.com/google/uuid"
 )
 
+type ParcelHandler struct {
+	createUC   *usecase.CreateParcelUseCase
+	getUC      *usecase.GetParcelUseCase
+	listUC     *usecase.ListParcelsUseCase
+	registerUC *usecase.RegisterParcelUseCase
+	boardUC    *usecase.BoardParcelUseCase
+	departUC   *usecase.DepartParcelUseCase
+	arriveUC   *usecase.ArriveParcelUseCase
+	deliverUC  *usecase.DeliverParcelUseCase
+}
+
+func NewParcelHandler(
+	createUC *usecase.CreateParcelUseCase,
+	listUC *usecase.ListParcelsUseCase,
+	getUC *usecase.GetParcelUseCase,
+	registerUC *usecase.RegisterParcelUseCase,
+	boardUC *usecase.BoardParcelUseCase,
+	departUC *usecase.DepartParcelUseCase,
+	arriveUC *usecase.ArriveParcelUseCase,
+	deliverUC *usecase.DeliverParcelUseCase) *ParcelHandler {
+	return &ParcelHandler{
+		createUC:   createUC,
+		listUC:     listUC,
+		getUC:      getUC,
+		registerUC: registerUC,
+		boardUC:    boardUC,
+		departUC:   departUC,
+		arriveUC:   arriveUC,
+		deliverUC:  deliverUC,
+	}
+}
+
 // Create godoc
 // @Summary Crear envío
 // @Description Crea un nuevo envío (parcel)
