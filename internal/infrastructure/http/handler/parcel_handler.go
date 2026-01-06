@@ -1,10 +1,6 @@
 package handler
 
 import (
-	"ms-parcel-core/internal/parcel/parcel_core/domain"
-	"ms-parcel-core/internal/parcel/parcel_core/port"
-	"ms-parcel-core/internal/parcel/parcel_core/usecase"
-	"ms-parcel-core/internal/pkg/util/apperror"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ms-parcel-core/internal/infrastructure/http/dto"
+	"ms-parcel-core/internal/parcel/parcel_core/domain"
+	"ms-parcel-core/internal/parcel/parcel_core/port"
+	"ms-parcel-core/internal/parcel/parcel_core/usecase"
+	"ms-parcel-core/internal/pkg/util/apperror"
 )
 
 type ParcelHandler struct {
@@ -55,14 +57,14 @@ func NewParcelHandler(
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
 // @Param payload body CreateParcelRequest true "Create parcel"
-// @Success 201 {object} handler.AnyDataEnvelope
+// @Success 201 {object} handler.CreateParcelResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 409 {object} handler.ErrorResponse
 // @Failure 500 {object} handler.ErrorResponse
 // @Router /parcels [post]
 func (h *ParcelHandler) Create(c *gin.Context) {
-	var req CreateParcelRequest
+	var req dto.CreateParcelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
 		return
@@ -99,7 +101,7 @@ func (h *ParcelHandler) Create(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data": CreateParcelResponse{
+		"data": dto.CreateParcelResponse{
 			ID:                  id.String(),
 			Status:              string(domain.ParcelStatusCreated),
 			ShipmentType:        req.ShipmentType,
@@ -131,7 +133,7 @@ func (h *ParcelHandler) Create(c *gin.Context) {
 // @Param to_created_at query string false "To created_at (RFC3339)"
 // @Param limit query int false "Limit"
 // @Param offset query int false "Offset"
-// @Success 200 {object} handler.AnyDataEnvelope
+// @Success 200 {object} handler.ParcelListResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 500 {object} handler.ErrorResponse
@@ -268,7 +270,7 @@ func (h *ParcelHandler) List(c *gin.Context) {
 		return
 	}
 
-	items := make([]CreateParcelResponse, 0, len(out.Items))
+	items := make([]dto.CreateParcelResponse, 0, len(out.Items))
 	for _, p := range out.Items {
 		var registeredAtStr *string
 		if p.RegisteredAt != nil {
@@ -301,7 +303,7 @@ func (h *ParcelHandler) List(c *gin.Context) {
 			deliveredAtStr = &s
 		}
 
-		items = append(items, CreateParcelResponse{
+		items = append(items, dto.CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),
@@ -328,9 +330,9 @@ func (h *ParcelHandler) List(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": ParcelListResponse{
+		"data": dto.ParcelListResponse{
 			Items: items,
-			Pagination: ParcelListPagination{
+			Pagination: dto.ParcelListPagination{
 				Limit:  limit,
 				Offset: offset,
 				Count:  out.Count,
@@ -347,7 +349,7 @@ func (h *ParcelHandler) List(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
 // @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
+// @Success 200 {object} handler.CreateParcelResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 404 {object} handler.ErrorResponse
@@ -405,7 +407,7 @@ func (h *ParcelHandler) GetByID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": CreateParcelResponse{
+		"data": dto.CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),
@@ -439,7 +441,7 @@ func (h *ParcelHandler) GetByID(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
 // @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
+// @Success 200 {object} handler.CreateParcelResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 404 {object} handler.ErrorResponse
@@ -502,7 +504,7 @@ func (h *ParcelHandler) Register(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": CreateParcelResponse{
+		"data": dto.CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),
@@ -536,7 +538,7 @@ func (h *ParcelHandler) Register(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
 // @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
+// @Success 200 {object} handler.CreateParcelResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 404 {object} handler.ErrorResponse
@@ -551,7 +553,7 @@ func (h *ParcelHandler) Board(c *gin.Context) {
 		return
 	}
 
-	var req BoardParcelRequest
+	var req dto.BoardParcelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
 		return
@@ -643,7 +645,7 @@ func (h *ParcelHandler) Board(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": CreateParcelResponse{
+		"data": dto.CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),
@@ -677,7 +679,7 @@ func (h *ParcelHandler) Board(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
 // @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
+// @Success 200 {object} handler.CreateParcelResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 404 {object} handler.ErrorResponse
@@ -692,7 +694,7 @@ func (h *ParcelHandler) Depart(c *gin.Context) {
 		return
 	}
 
-	var req DepartParcelRequest
+	var req dto.DepartParcelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
 		return
@@ -776,7 +778,7 @@ func (h *ParcelHandler) Depart(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": CreateParcelResponse{
+		"data": dto.CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),
@@ -810,7 +812,7 @@ func (h *ParcelHandler) Depart(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
 // @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
+// @Success 200 {object} handler.CreateParcelResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 404 {object} handler.ErrorResponse
@@ -825,7 +827,7 @@ func (h *ParcelHandler) Arrive(c *gin.Context) {
 		return
 	}
 
-	var req ArriveParcelRequest
+	var req dto.ArriveParcelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
 		return
@@ -886,7 +888,7 @@ func (h *ParcelHandler) Arrive(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": CreateParcelResponse{
+		"data": dto.CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),
@@ -920,7 +922,7 @@ func (h *ParcelHandler) Arrive(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
 // @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
+// @Success 200 {object} handler.CreateParcelResponseEnvelope
 // @Failure 400 {object} handler.ErrorResponse
 // @Failure 401 {object} handler.ErrorResponse
 // @Failure 404 {object} handler.ErrorResponse
@@ -935,7 +937,7 @@ func (h *ParcelHandler) Deliver(c *gin.Context) {
 		return
 	}
 
-	var req DeliverParcelRequest
+	var req dto.DeliverParcelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
 		return
@@ -996,7 +998,7 @@ func (h *ParcelHandler) Deliver(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": CreateParcelResponse{
+		"data": dto.CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),

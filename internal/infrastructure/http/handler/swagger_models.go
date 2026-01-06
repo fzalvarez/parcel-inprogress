@@ -1,6 +1,9 @@
 package handler
 
-import "ms-parcel-core/internal/pkg/util/apperror"
+import (
+	"ms-parcel-core/internal/infrastructure/http/dto"
+	"ms-parcel-core/internal/pkg/util/apperror"
+)
 
 type ErrorResponse struct {
 	Success bool              `json:"success" example:"false"`
@@ -25,4 +28,14 @@ type HealthResponse struct {
 
 type HealthResponseEnvelope struct {
 	Data HealthResponse `json:"data"`
+}
+
+type CreateParcelResponseEnvelope struct {
+	Success bool                     `json:"success" example:"true"`
+	Data    dto.CreateParcelResponse `json:"data"`
+}
+
+type ParcelListResponseEnvelope struct {
+	Success bool                   `json:"success" example:"true"`
+	Data    dto.ParcelListResponse `json:"data"`
 }
