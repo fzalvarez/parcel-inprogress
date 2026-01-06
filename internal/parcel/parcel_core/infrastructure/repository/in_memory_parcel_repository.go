@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -324,6 +325,32 @@ func (r *InMemoryParcelRepository) List(ctx context.Context, tenantID string, f 
 			continue
 		}
 
+		q := ""
+		if f.Query != nil {
+			q = strings.TrimSpace(*f.Query)
+		}
+		qUUID := uuid.Nil
+		isUUID := false
+		if q != "" {
+			if parsed, err := uuid.Parse(q); err == nil {
+				qUUID = parsed
+				isUUID = true
+			}
+		}
+
+		// Filtro adicional: q (AND)
+		if q != "" {
+			if isUUID {
+				if p.ID != qUUID.String() {
+					continue
+				}
+			} else {
+				if !strings.EqualFold(strings.TrimSpace(p.TrackingCode), q) {
+					continue
+				}
+			}
+		}
+
 		filtered = append(filtered, p)
 	}
 
@@ -355,4 +382,24 @@ func (r *InMemoryParcelRepository) List(ctx context.Context, tenantID string, f 
 	paged = append(paged, filtered[start:end]...)
 
 	return paged, count, nil
+}
+
+func (r *InMemoryParcelRepository) ExistsTrackingCode(ctx context.Context, code string) (bool, error) {
+	_ = ctx
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.data == nil {
+		return false, apperror.NewInternal("internal_error", "repositorio parcels no inicializado", nil)
+	}
+
+	for _, byParcel := range r.data {
+		for _, p := range byParcel {
+			if p.TrackingCode == code {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

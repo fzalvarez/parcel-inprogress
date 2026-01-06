@@ -22,6 +22,20 @@ func NewParcelSummaryHandler(uc *coreusecase.GetParcelSummaryUseCase) *ParcelSum
 	return &ParcelSummaryHandler{uc: uc}
 }
 
+// Get godoc
+// @Summary Resumen operativo
+// @Description Devuelve parcel + items + payment + tracking
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/summary [get]
 func (h *ParcelSummaryHandler) Get(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(idStr)

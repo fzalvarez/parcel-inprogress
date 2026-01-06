@@ -14,10 +14,14 @@ import (
 )
 
 type UpsertParcelPaymentRequest struct {
-	PaymentType string  `json:"payment_type" binding:"required,oneof=CASH FOB CARD TRANSFER EWALLET FREE COLLECT_ON_DELIVERY"`
-	Currency    *string `json:"currency" binding:"omitempty,oneof=PEN USD"`
-	Amount      float64 `json:"amount" binding:"required"`
-	Notes       *string `json:"notes" binding:"omitempty,max=200"`
+	PaymentType  string  `json:"payment_type" binding:"required,oneof=CASH FOB CARD TRANSFER EWALLET FREE COLLECT_ON_DELIVERY"`
+	Currency     *string `json:"currency" binding:"omitempty,oneof=PEN USD"`
+	Amount       float64 `json:"amount" binding:"required"`
+	Notes        *string `json:"notes" binding:"omitempty,max=200"`
+	Channel      *string `json:"channel" binding:"omitempty,oneof=COUNTER WEB"`
+	OfficeID     *string `json:"office_id" binding:"omitempty,uuid"`
+	CashboxID    *string `json:"cashbox_id" binding:"omitempty,max=50"`
+	SellerUserID *string `json:"seller_user_id" binding:"omitempty,uuid"`
 }
 
 type ParcelPaymentResponse struct {
@@ -32,6 +36,10 @@ type ParcelPaymentResponse struct {
 	UpdatedAt    string  `json:"updated_at"`
 	PaidAt       *string `json:"paid_at,omitempty"`
 	PaidByUserID *string `json:"paid_by_user_id,omitempty"`
+	Channel      string  `json:"channel"`
+	OfficeID     *string `json:"office_id,omitempty"`
+	CashboxID    *string `json:"cashbox_id,omitempty"`
+	SellerUserID *string `json:"seller_user_id,omitempty"`
 }
 
 type ParcelPaymentHandler struct {
@@ -44,6 +52,23 @@ func NewParcelPaymentHandler(upsertUC *paymentusecase.UpsertParcelPaymentUseCase
 	return &ParcelPaymentHandler{upsertUC: upsertUC, getUC: getUC, markPaidUC: markPaidUC}
 }
 
+// Upsert godoc
+// @Summary Upsert pago
+// @Description Crea o actualiza el pago del envío
+// @Tags ParcelPayments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Param payload body UpsertParcelPaymentRequest true "Payment"
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/payment [put]
 func (h *ParcelPaymentHandler) Upsert(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(idStr)
@@ -63,6 +88,11 @@ func (h *ParcelPaymentHandler) Upsert(c *gin.Context) {
 		currency = strings.TrimSpace(*req.Currency)
 	}
 
+	channel := "COUNTER"
+	if req.Channel != nil && strings.TrimSpace(*req.Channel) != "" {
+		channel = strings.TrimSpace(*req.Channel)
+	}
+
 	tenantID, _ := c.Get("tenant_id")
 	tenant := strings.TrimSpace(anyToString(tenantID))
 	if tenant == "" {
@@ -71,12 +101,16 @@ func (h *ParcelPaymentHandler) Upsert(c *gin.Context) {
 	}
 
 	pay, err := h.upsertUC.Execute(c.Request.Context(), paymentusecase.UpsertParcelPaymentInput{
-		TenantID:    tenant,
-		ParcelID:    parcelID,
-		PaymentType: paymentdomain.PaymentType(strings.TrimSpace(req.PaymentType)),
-		Currency:    paymentdomain.Currency(currency),
-		Amount:      req.Amount,
-		Notes:       req.Notes,
+		TenantID:     tenant,
+		ParcelID:     parcelID,
+		PaymentType:  paymentdomain.PaymentType(strings.TrimSpace(req.PaymentType)),
+		Currency:     paymentdomain.Currency(currency),
+		Amount:       req.Amount,
+		Notes:        req.Notes,
+		Channel:      paymentdomain.PaymentChannel(channel),
+		OfficeID:     req.OfficeID,
+		CashboxID:    req.CashboxID,
+		SellerUserID: req.SellerUserID,
 	})
 	if err != nil {
 		_ = c.Error(err)
@@ -103,10 +137,28 @@ func (h *ParcelPaymentHandler) Upsert(c *gin.Context) {
 			UpdatedAt:    pay.UpdatedAt.UTC().Format(time.RFC3339),
 			PaidAt:       paidAtStr,
 			PaidByUserID: pay.PaidByUserID,
+			Channel:      string(pay.Channel),
+			OfficeID:     pay.OfficeID,
+			CashboxID:    pay.CashboxID,
+			SellerUserID: pay.SellerUserID,
 		},
 	})
 }
 
+// Get godoc
+// @Summary Obtener pago
+// @Description Obtiene el pago del envío
+// @Tags ParcelPayments
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/payment [get]
 func (h *ParcelPaymentHandler) Get(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(idStr)
@@ -152,10 +204,29 @@ func (h *ParcelPaymentHandler) Get(c *gin.Context) {
 			UpdatedAt:    pay.UpdatedAt.UTC().Format(time.RFC3339),
 			PaidAt:       paidAtStr,
 			PaidByUserID: pay.PaidByUserID,
+			Channel:      string(pay.Channel),
+			OfficeID:     pay.OfficeID,
+			CashboxID:    pay.CashboxID,
+			SellerUserID: pay.SellerUserID,
 		},
 	})
 }
 
+// MarkPaid godoc
+// @Summary Marcar pagado
+// @Description Marca el pago como pagado (origen o destino según tipo)
+// @Tags ParcelPayments
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/payment/mark-paid [post]
 func (h *ParcelPaymentHandler) MarkPaid(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(idStr)
@@ -204,6 +275,10 @@ func (h *ParcelPaymentHandler) MarkPaid(c *gin.Context) {
 			UpdatedAt:    pay.UpdatedAt.UTC().Format(time.RFC3339),
 			PaidAt:       paidAtStr,
 			PaidByUserID: pay.PaidByUserID,
+			Channel:      string(pay.Channel),
+			OfficeID:     pay.OfficeID,
+			CashboxID:    pay.CashboxID,
+			SellerUserID: pay.SellerUserID,
 		},
 	})
 }

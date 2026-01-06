@@ -20,6 +20,7 @@ type ListParcelFilters struct {
 	ToCreatedAt         *time.Time
 	Limit               int
 	Offset              int
+	Query               *string // q
 }
 
 type ParcelRepository interface {

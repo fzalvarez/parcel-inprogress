@@ -40,6 +40,23 @@ func NewParcelDocumentsHandler(registerUC *docusecase.RegisterPrintUseCase, prin
 	return &ParcelDocumentsHandler{registerUC: registerUC, printRepo: printRepo}
 }
 
+// RegisterPrint godoc
+// @Summary Registrar impresión
+// @Description Registra una impresión de documento (MVP)
+// @Tags ParcelDocuments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Param payload body RegisterPrintRequest true "Document print"
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/documents/print [post]
 func (h *ParcelDocumentsHandler) RegisterPrint(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(idStr)
@@ -94,6 +111,19 @@ func (h *ParcelDocumentsHandler) RegisterPrint(c *gin.Context) {
 	})
 }
 
+// ListPrints godoc
+// @Summary Listar impresiones
+// @Description Lista impresiones registradas por envío
+// @Tags ParcelDocuments
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/documents/prints [get]
 func (h *ParcelDocumentsHandler) ListPrints(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(idStr)

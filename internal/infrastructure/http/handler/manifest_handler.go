@@ -25,6 +25,20 @@ func NewManifestHandler(buildUC *manifestusecase.BuildManifestPreviewUseCase) *M
 	return &ManifestHandler{buildUC: buildUC}
 }
 
+// PreviewPost godoc
+// @Summary Preview manifest
+// @Description Construye un manifiesto virtual (preview)
+// @Tags Manifests
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param payload body any true "Preview request"
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /manifests/preview [post]
 func (h *ManifestHandler) PreviewPost(c *gin.Context) {
 	var req ManifestPreviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -66,6 +80,17 @@ func (h *ManifestHandler) PreviewPost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": prev})
 }
 
+// PreviewGet godoc
+// @Summary Preview manifest (GET)
+// @Description Obtiene el último preview en memoria
+// @Tags Manifests
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /manifests/preview [get]
 func (h *ManifestHandler) PreviewGet(c *gin.Context) {
 	vehicleID := strings.TrimSpace(c.Query("vehicle_id"))
 	originOfficeID := strings.TrimSpace(c.Query("origin_office_id"))

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"ms-parcel-core/internal/parcel/parcel_core/domain"
+	repository "ms-parcel-core/internal/parcel/parcel_core/infrastructure/repository"
 	"ms-parcel-core/internal/parcel/parcel_core/port"
 	"ms-parcel-core/internal/pkg/util/apperror"
 )
@@ -37,6 +39,35 @@ type CreateParcelUseCase struct {
 
 func NewCreateParcelUseCase(repo port.ParcelRepository, tenantConfig port.TenantConfigClient, tracking port.TrackingRecorder, optionsProvider port.TenantOptionsProvider) *CreateParcelUseCase {
 	return &CreateParcelUseCase{repo: repo, tenantConfig: tenantConfig, tracking: tracking, optionsProvider: optionsProvider}
+}
+
+func buildYearCode(now time.Time) string {
+	y := now.UTC().Year()
+	if y < 2025 {
+		return "A"
+	}
+	offset := y - 2025
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > 25 {
+		offset = 25
+	}
+	return string(rune('A' + offset))
+}
+
+func randomCrockford(n int) (string, error) {
+	const alphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789"
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	out := make([]byte, n)
+	for i := 0; i < n; i++ {
+		out[i] = alphabet[int(b[i])%len(alphabet)]
+	}
+	return string(out), nil
 }
 
 func (u *CreateParcelUseCase) Execute(ctx context.Context, in CreateParcelInput) (uuid.UUID, error) {
@@ -98,6 +129,36 @@ func (u *CreateParcelUseCase) Execute(ctx context.Context, in CreateParcelInput)
 			p.PackageKeyHashSHA256 = hex.EncodeToString(h[:])
 		} else {
 			p.PackageKeyHashSHA256 = ""
+		}
+	}
+
+	if strings.TrimSpace(p.TrackingCode) == "" {
+		now := time.Now().UTC()
+		assigned := false
+
+		checker, ok := u.repo.(*repository.InMemoryParcelRepository)
+		if !ok {
+			return uuid.Nil, apperror.NewInternal("internal_error", "repositorio no soporta verificación de tracking_code", nil)
+		}
+
+		for i := 0; i < 5; i++ {
+			rnd, err := randomCrockford(5)
+			if err != nil {
+				return uuid.Nil, apperror.NewInternal("internal_error", "no se pudo generar tracking_code", map[string]any{"error": err.Error()})
+			}
+			code := "QB" + buildYearCode(now) + rnd
+			exists, err := checker.ExistsTrackingCode(ctx, code)
+			if err != nil {
+				return uuid.Nil, err
+			}
+			if !exists {
+				p.TrackingCode = code
+				assigned = true
+				break
+			}
+		}
+		if !assigned {
+			return uuid.Nil, apperror.NewInternal("internal_error", "no se pudo asignar tracking_code", nil)
 		}
 	}
 

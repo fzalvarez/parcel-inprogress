@@ -8,6 +8,8 @@ type Currency string
 
 type PaymentStatus string
 
+type PaymentChannel string
+
 const (
 	PaymentTypeCash              PaymentType = "CASH"
 	PaymentTypeFOB               PaymentType = "FOB"
@@ -28,6 +30,11 @@ const (
 	PaymentStatusPaid    PaymentStatus = "PAID"
 )
 
+const (
+	PaymentChannelCounter PaymentChannel = "COUNTER"
+	PaymentChannelWeb     PaymentChannel = "WEB"
+)
+
 type ParcelPayment struct {
 	ID           string
 	TenantID     string
@@ -41,4 +48,9 @@ type ParcelPayment struct {
 	UpdatedAt    time.Time
 	PaidAt       *time.Time
 	PaidByUserID *string
+
+	Channel      PaymentChannel
+	OfficeID     *string
+	CashboxID    *string
+	SellerUserID *string
 }

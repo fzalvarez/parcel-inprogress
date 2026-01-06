@@ -47,4 +47,5 @@ type Parcel struct {
 	ArrivedByUserID    *string
 	DepartedAt         *time.Time
 	DepartedByUserID   *string
+	TrackingCode       string
 }

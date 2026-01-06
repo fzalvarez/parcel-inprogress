@@ -36,10 +36,11 @@ type RegisterPrintUseCase struct {
 	parcelRepo coreport.ParcelReader
 	printRepo  docport.PrintRepository
 	opts       coreport.TenantOptionsProvider
+	qrGen      docport.QRGenerator
 }
 
-func NewRegisterPrintUseCase(parcelRepo coreport.ParcelReader, printRepo docport.PrintRepository, opts coreport.TenantOptionsProvider) *RegisterPrintUseCase {
-	return &RegisterPrintUseCase{parcelRepo: parcelRepo, printRepo: printRepo, opts: opts}
+func NewRegisterPrintUseCase(parcelRepo coreport.ParcelReader, printRepo docport.PrintRepository, opts coreport.TenantOptionsProvider, qrGen docport.QRGenerator) *RegisterPrintUseCase {
+	return &RegisterPrintUseCase{parcelRepo: parcelRepo, printRepo: printRepo, opts: opts, qrGen: qrGen}
 }
 
 func (u *RegisterPrintUseCase) Execute(ctx context.Context, in RegisterPrintInput) (*RegisterPrintResult, error) {
@@ -62,6 +63,22 @@ func (u *RegisterPrintUseCase) Execute(ctx context.Context, in RegisterPrintInpu
 	}
 	if p == nil {
 		return nil, apperror.New("not_found", "parcel no encontrado", map[string]any{"id": in.ParcelID.String()}, 404)
+	}
+
+	// Si es LABEL, intentar generar QR (no bloqueante)
+	if in.DocType == docdomain.DocumentTypeLabel && u.qrGen != nil {
+		trackingCode := ""
+		if p != nil {
+			trackingCode = strings.TrimSpace(p.TrackingCode)
+		}
+		payload := docport.QRPayload{
+			TenantID:     in.TenantID,
+			ParcelID:     in.ParcelID.String(),
+			TrackingCode: trackingCode,
+		}
+		if _, err := u.qrGen.Generate(ctx, payload); err != nil {
+			// TODO: logger
+		}
 	}
 
 	defaults := coreport.ParcelOptions{

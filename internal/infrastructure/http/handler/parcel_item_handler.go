@@ -43,6 +43,23 @@ func NewParcelItemHandler(addUC *itemusecase.AddParcelItemUseCase, listUC *itemu
 	return &ParcelItemHandler{addUC: addUC, listUC: listUC, deleteUC: deleteUC}
 }
 
+// Add godoc
+// @Summary Agregar item
+// @Description Agrega un item al envío
+// @Tags ParcelItems
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Param payload body AddParcelItemRequest true "Add item"
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/items [post]
 func (h *ParcelItemHandler) Add(c *gin.Context) {
 	parcelIDStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(parcelIDStr)
@@ -100,6 +117,20 @@ func (h *ParcelItemHandler) Add(c *gin.Context) {
 	})
 }
 
+// List godoc
+// @Summary Listar items
+// @Description Lista items del envío
+// @Tags ParcelItems
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/items [get]
 func (h *ParcelItemHandler) List(c *gin.Context) {
 	parcelIDStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(parcelIDStr)
@@ -139,6 +170,22 @@ func (h *ParcelItemHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": out})
 }
 
+// Delete godoc
+// @Summary Eliminar item
+// @Description Elimina un item del envío
+// @Tags ParcelItems
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Param item_id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/items/{item_id} [delete]
 func (h *ParcelItemHandler) Delete(c *gin.Context) {
 	parcelIDStr := strings.TrimSpace(c.Param("id"))
 	parcelID, err := uuid.Parse(parcelIDStr)

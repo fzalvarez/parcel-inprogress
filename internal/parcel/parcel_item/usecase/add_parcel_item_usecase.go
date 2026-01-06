@@ -7,10 +7,11 @@ import (
 
 	"github.com/google/uuid"
 
-	coredomain "ms-parcel-core/internal/parcel/parcel_core/domain"
 	coreport "ms-parcel-core/internal/parcel/parcel_core/port"
 	"ms-parcel-core/internal/parcel/parcel_item/domain"
 	"ms-parcel-core/internal/parcel/parcel_item/port"
+	pricingdomain "ms-parcel-core/internal/parcel/parcel_pricing/domain"
+	pricingport "ms-parcel-core/internal/parcel/parcel_pricing/port"
 	"ms-parcel-core/internal/pkg/util/apperror"
 )
 
@@ -32,10 +33,11 @@ type AddParcelItemUseCase struct {
 	repo            port.ParcelItemRepository
 	tracking        coreport.TrackingRecorder
 	optionsProvider coreport.TenantOptionsProvider
+	priceRules      pricingport.PriceRuleRepository
 }
 
-func NewAddParcelItemUseCase(parcelReader coreport.ParcelReader, repo port.ParcelItemRepository, tracking coreport.TrackingRecorder, optionsProvider coreport.TenantOptionsProvider) *AddParcelItemUseCase {
-	return &AddParcelItemUseCase{parcelReader: parcelReader, repo: repo, tracking: tracking, optionsProvider: optionsProvider}
+func NewAddParcelItemUseCase(parcelReader coreport.ParcelReader, repo port.ParcelItemRepository, tracking coreport.TrackingRecorder, optionsProvider coreport.TenantOptionsProvider, priceRules pricingport.PriceRuleRepository) *AddParcelItemUseCase {
+	return &AddParcelItemUseCase{parcelReader: parcelReader, repo: repo, tracking: tracking, optionsProvider: optionsProvider, priceRules: priceRules}
 }
 
 func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInput) (uuid.UUID, error) {
@@ -46,17 +48,12 @@ func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInpu
 		return uuid.Nil, apperror.NewBadRequest("validation_error", "id inválido", map[string]any{"field": "id"})
 	}
 
-	p, err := u.parcelReader.GetByID(ctx, in.TenantID, in.ParcelID)
+	parcel, err := u.parcelReader.GetByID(ctx, in.TenantID, in.ParcelID)
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if p == nil {
+	if parcel == nil {
 		return uuid.Nil, apperror.New("not_found", "parcel no encontrado", map[string]any{"id": in.ParcelID.String()}, 404)
-	}
-
-	allowed := p.Status == coredomain.ParcelStatusCreated || p.Status == coredomain.ParcelStatusRegistered
-	if !allowed {
-		return uuid.Nil, apperror.New("invalid_state", "no se pueden modificar items en este estado", map[string]any{"allowed": []coredomain.ParcelStatus{coredomain.ParcelStatusCreated, coredomain.ParcelStatusRegistered}, "actual": p.Status}, 409)
 	}
 
 	defaults := coreport.ParcelOptions{
@@ -65,6 +62,9 @@ func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInpu
 		AllowManualPrice:        false,
 		AllowOverridePriceTable: true,
 		AllowPayInDestination:   false,
+		MaxPrints:               1,
+		AllowReprint:            false,
+		ReprintFeeEnabled:       false,
 	}
 	opts := defaults
 	if u.optionsProvider != nil {
@@ -75,12 +75,44 @@ func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInpu
 		}
 	}
 
-	if opts.UsePriceTable && !opts.AllowManualPrice {
-		if in.UnitPrice > 0 {
-			return uuid.Nil, apperror.New("manual_price_disabled", "precio manual deshabilitado", nil, 409)
+	unitPrice := in.UnitPrice
+
+	if opts.UsePriceTable {
+		if u.priceRules == nil {
+			return uuid.Nil, apperror.New("price_rule_not_found", "regla de precios no configurada", nil, 409)
 		}
-		// TODO: cuando exista tabla real, calcular unit_price automáticamente; override permitido si opts.AllowOverridePriceTable
+
+		rule, err := u.priceRules.FindMatch(ctx, in.TenantID, string(parcel.ShipmentType), parcel.OriginOfficeID, parcel.DestinationOfficeID)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if rule == nil {
+			return uuid.Nil, apperror.New("price_rule_not_found", "regla de precios no encontrada", map[string]any{"shipment_type": parcel.ShipmentType, "origin_office_id": parcel.OriginOfficeID, "destination_office_id": parcel.DestinationOfficeID}, 409)
+		}
+
+		suggested := 0.0
+		switch rule.Unit {
+		case pricingdomain.PriceUnitPerItem:
+			suggested = rule.Price * float64(in.Quantity)
+		case pricingdomain.PriceUnitPerKg:
+			suggested = rule.Price * in.WeightKg
+		default:
+			return uuid.Nil, apperror.New("validation_error", "unit inválido", map[string]any{"unit": rule.Unit}, 400)
+		}
+
+		if !opts.AllowOverridePriceTable {
+			if !opts.AllowManualPrice && in.UnitPrice > 0 {
+				return uuid.Nil, apperror.New("manual_price_disabled", "precio manual deshabilitado", nil, 409)
+			}
+			unitPrice = suggested
+		} else {
+			if in.UnitPrice <= 0 {
+				unitPrice = suggested
+			}
+		}
 	}
+
+	in.UnitPrice = unitPrice
 
 	item := domain.ParcelItem{
 		ID:          uuid.NewString(),

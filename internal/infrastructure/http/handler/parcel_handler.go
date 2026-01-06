@@ -1,6 +1,10 @@
 package handler
 
 import (
+	"ms-parcel-core/internal/parcel/parcel_core/domain"
+	"ms-parcel-core/internal/parcel/parcel_core/port"
+	"ms-parcel-core/internal/parcel/parcel_core/usecase"
+	"ms-parcel-core/internal/pkg/util/apperror"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,96 +12,23 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-
-	"ms-parcel-core/internal/parcel/parcel_core/domain"
-	"ms-parcel-core/internal/parcel/parcel_core/port"
-	"ms-parcel-core/internal/parcel/parcel_core/usecase"
-	"ms-parcel-core/internal/pkg/util/apperror"
 )
 
-type CreateParcelRequest struct {
-	ShipmentType        string  `json:"shipment_type" binding:"required,oneof=BUS CARGUERO"`
-	OriginOfficeID      string  `json:"origin_office_id" binding:"required,uuid"`
-	DestinationOfficeID string  `json:"destination_office_id" binding:"required,uuid"`
-	SenderPersonID      string  `json:"sender_person_id" binding:"required,uuid"`
-	RecipientPersonID   string  `json:"recipient_person_id" binding:"required,uuid"`
-	Notes               *string `json:"notes" binding:"omitempty,max=500"`
-	PackageKey          string  `json:"package_key" binding:"required,min=4,max=200"`
-	PackageKeyConfirm   string  `json:"package_key_confirm" binding:"required,min=4,max=200"`
-}
-
-type BoardParcelRequest struct {
-	VehicleID      string  `json:"vehicle_id" binding:"required,uuid"`
-	OriginOfficeID *string `json:"origin_office_id" binding:"omitempty,uuid"`
-	TripID         *string `json:"trip_id" binding:"omitempty,uuid"`
-	DepartureAt    *string `json:"departure_at" binding:"omitempty"`
-}
-
-type DeliverParcelRequest struct {
-	PackageKey string `json:"package_key" binding:"required,min=1,max=200"`
-}
-
-type ArriveParcelRequest struct {
-	DestinationOfficeID string `json:"destination_office_id" binding:"required,uuid"`
-}
-
-type DepartParcelRequest struct {
-	DepartureOfficeID string  `json:"departure_office_id" binding:"required,uuid"`
-	VehicleID         *string `json:"vehicle_id" binding:"omitempty,uuid"`
-	DepartedAt        *string `json:"departed_at" binding:"omitempty"`
-}
-
-type CreateParcelResponse struct {
-	ID                  string  `json:"id"`
-	Status              string  `json:"status"`
-	ShipmentType        string  `json:"shipment_type"`
-	OriginOfficeID      string  `json:"origin_office_id"`
-	DestinationOfficeID string  `json:"destination_office_id"`
-	SenderPersonID      string  `json:"sender_person_id"`
-	RecipientPersonID   string  `json:"recipient_person_id"`
-	Notes               *string `json:"notes"`
-	CreatedAt           string  `json:"created_at"`
-	RegisteredAt        *string `json:"registered_at,omitempty"`
-
-	BoardedVehicleID   *string `json:"boarded_vehicle_id,omitempty"`
-	BoardedTripID      *string `json:"boarded_trip_id,omitempty"`
-	BoardedDepartureAt *string `json:"boarded_departure_at,omitempty"`
-	BoardedAt          *string `json:"boarded_at,omitempty"`
-	BoardedByUserID    *string `json:"boarded_by_user_id,omitempty"`
-	DeliveredAt        *string `json:"delivered_at,omitempty"`
-	DeliveredByUserID  *string `json:"delivered_by_user_id,omitempty"`
-	ArrivedAt          *string `json:"arrived_at,omitempty"`
-	ArrivedByUserID    *string `json:"arrived_by_user_id,omitempty"`
-	DepartedAt         *string `json:"departed_at,omitempty"`
-	DepartedByUserID   *string `json:"departed_by_user_id,omitempty"`
-}
-
-type ParcelListPagination struct {
-	Limit  int `json:"limit"`
-	Offset int `json:"offset"`
-	Count  int `json:"count"`
-}
-
-type ParcelListResponse struct {
-	Items      []CreateParcelResponse `json:"items"`
-	Pagination ParcelListPagination   `json:"pagination"`
-}
-
-type ParcelHandler struct {
-	createUC   *usecase.CreateParcelUseCase
-	getUC      *usecase.GetParcelUseCase
-	registerUC *usecase.RegisterParcelUseCase
-	boardUC    *usecase.BoardParcelUseCase
-	deliverUC  *usecase.DeliverParcelUseCase
-	arriveUC   *usecase.ArriveParcelUseCase
-	departUC   *usecase.DepartParcelUseCase
-	listUC     *usecase.ListParcelsUseCase
-}
-
-func NewParcelHandler(createUC *usecase.CreateParcelUseCase, getUC *usecase.GetParcelUseCase, registerUC *usecase.RegisterParcelUseCase, boardUC *usecase.BoardParcelUseCase, deliverUC *usecase.DeliverParcelUseCase, arriveUC *usecase.ArriveParcelUseCase, departUC *usecase.DepartParcelUseCase, listUC *usecase.ListParcelsUseCase) *ParcelHandler {
-	return &ParcelHandler{createUC: createUC, getUC: getUC, registerUC: registerUC, boardUC: boardUC, deliverUC: deliverUC, arriveUC: arriveUC, departUC: departUC, listUC: listUC}
-}
-
+// Create godoc
+// @Summary Crear envío
+// @Description Crea un nuevo envío (parcel)
+// @Tags Parcels
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param payload body CreateParcelRequest true "Create parcel"
+// @Success 201 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels [post]
 func (h *ParcelHandler) Create(c *gin.Context) {
 	var req CreateParcelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -150,6 +81,246 @@ func (h *ParcelHandler) Create(c *gin.Context) {
 	})
 }
 
+// List godoc
+// @Summary Listar envíos
+// @Description Lista envíos con filtros y paginación
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param q query string false "Search by tracking_code or parcel id"
+// @Param status query string false "Status"
+// @Param origin_office_id query string false "Origin office id"
+// @Param destination_office_id query string false "Destination office id"
+// @Param sender_person_id query string false "Sender person id"
+// @Param recipient_person_id query string false "Recipient person id"
+// @Param vehicle_id query string false "Vehicle id"
+// @Param from_created_at query string false "From created_at (RFC3339)"
+// @Param to_created_at query string false "To created_at (RFC3339)"
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels [get]
+func (h *ParcelHandler) List(c *gin.Context) {
+	tenantID, _ := c.Get("tenant_id")
+	tenant := strings.TrimSpace(anyToString(tenantID))
+	if tenant == "" {
+		_ = c.Error(apperror.NewUnauthorized("unauthorized", "credenciales inválidas", nil))
+		return
+	}
+
+	var statusPtr *domain.ParcelStatus
+	statusStr := strings.TrimSpace(c.Query("status"))
+	if statusStr != "" {
+		s := domain.ParcelStatus(statusStr)
+		statusPtr = &s
+	}
+
+	parseUUIDQuery := func(key string) (*string, error) {
+		v := strings.TrimSpace(c.Query(key))
+		if v == "" {
+			return nil, nil
+		}
+		if _, err := uuid.Parse(v); err != nil {
+			return nil, apperror.NewBadRequest("validation_error", key+" inválido", map[string]any{"field": key})
+		}
+		return &v, nil
+	}
+
+	originOfficeID, err := parseUUIDQuery("origin_office_id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	destinationOfficeID, err := parseUUIDQuery("destination_office_id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	vehicleID, err := parseUUIDQuery("vehicle_id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	senderPersonID, err := parseUUIDQuery("sender_person_id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	recipientPersonID, err := parseUUIDQuery("recipient_person_id")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var fromPtr *time.Time
+	fromStr := strings.TrimSpace(c.Query("from"))
+	if fromStr != "" {
+		tm, err := time.Parse(time.RFC3339, fromStr)
+		if err != nil {
+			_ = c.Error(apperror.NewBadRequest("validation_error", "from inválido", map[string]any{"field": "from"}))
+			return
+		}
+		ut := tm.UTC()
+		fromPtr = &ut
+	}
+
+	var toPtr *time.Time
+	toStr := strings.TrimSpace(c.Query("to"))
+	if toStr != "" {
+		tm, err := time.Parse(time.RFC3339, toStr)
+		if err != nil {
+			_ = c.Error(apperror.NewBadRequest("validation_error", "to inválido", map[string]any{"field": "to"}))
+			return
+		}
+		ut := tm.UTC()
+		toPtr = &ut
+	}
+
+	limit := 50
+	if l := strings.TrimSpace(c.Query("limit")); l != "" {
+		v, err := strconv.Atoi(l)
+		if err != nil {
+			_ = c.Error(apperror.NewBadRequest("validation_error", "limit inválido", map[string]any{"field": "limit"}))
+			return
+		}
+		limit = v
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	offset := 0
+	if o := strings.TrimSpace(c.Query("offset")); o != "" {
+		v, err := strconv.Atoi(o)
+		if err != nil {
+			_ = c.Error(apperror.NewBadRequest("validation_error", "offset inválido", map[string]any{"field": "offset"}))
+			return
+		}
+		offset = v
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	filters := port.ListParcelFilters{
+		Status:              statusPtr,
+		OriginOfficeID:      originOfficeID,
+		DestinationOfficeID: destinationOfficeID,
+		VehicleID:           vehicleID,
+		SenderPersonID:      senderPersonID,
+		RecipientPersonID:   recipientPersonID,
+		FromCreatedAt:       fromPtr,
+		ToCreatedAt:         toPtr,
+		Limit:               limit,
+		Offset:              offset,
+	}
+
+	q := strings.TrimSpace(c.Query("q"))
+	if q != "" {
+		filters.Query = &q
+	}
+
+	out, err := h.listUC.Execute(c.Request.Context(), usecase.ListParcelsInput{
+		TenantID: tenant,
+		Filters:  filters,
+	})
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	items := make([]CreateParcelResponse, 0, len(out.Items))
+	for _, p := range out.Items {
+		var registeredAtStr *string
+		if p.RegisteredAt != nil {
+			s := p.RegisteredAt.UTC().Format(time.RFC3339)
+			registeredAtStr = &s
+		}
+		var boardedAtStr *string
+		if p.BoardedAt != nil {
+			s := p.BoardedAt.UTC().Format(time.RFC3339)
+			boardedAtStr = &s
+		}
+		var boardedDepartureAtStr *string
+		if p.BoardedDepartureAt != nil {
+			s := p.BoardedDepartureAt.UTC().Format(time.RFC3339)
+			boardedDepartureAtStr = &s
+		}
+		var departedAtStr *string
+		if p.DepartedAt != nil {
+			s := p.DepartedAt.UTC().Format(time.RFC3339)
+			departedAtStr = &s
+		}
+		var arrivedAtStr *string
+		if p.ArrivedAt != nil {
+			s := p.ArrivedAt.UTC().Format(time.RFC3339)
+			arrivedAtStr = &s
+		}
+		var deliveredAtStr *string
+		if p.DeliveredAt != nil {
+			s := p.DeliveredAt.UTC().Format(time.RFC3339)
+			deliveredAtStr = &s
+		}
+
+		items = append(items, CreateParcelResponse{
+			ID:                  p.ID,
+			Status:              string(p.Status),
+			ShipmentType:        string(p.ShipmentType),
+			OriginOfficeID:      p.OriginOfficeID,
+			DestinationOfficeID: p.DestinationOfficeID,
+			SenderPersonID:      p.SenderPersonID,
+			RecipientPersonID:   p.RecipientPersonID,
+			Notes:               p.Notes,
+			CreatedAt:           p.CreatedAt.UTC().Format(time.RFC3339),
+			RegisteredAt:        registeredAtStr,
+			BoardedVehicleID:    p.BoardedVehicleID,
+			BoardedTripID:       p.BoardedTripID,
+			BoardedDepartureAt:  boardedDepartureAtStr,
+			BoardedAt:           boardedAtStr,
+			BoardedByUserID:     p.BoardedByUserID,
+			DepartedAt:          departedAtStr,
+			DepartedByUserID:    p.DepartedByUserID,
+			ArrivedAt:           arrivedAtStr,
+			ArrivedByUserID:     p.ArrivedByUserID,
+			DeliveredAt:         deliveredAtStr,
+			DeliveredByUserID:   p.DeliveredByUserID,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": ParcelListResponse{
+			Items: items,
+			Pagination: ParcelListPagination{
+				Limit:  limit,
+				Offset: offset,
+				Count:  out.Count,
+			},
+		},
+	})
+}
+
+// GetByID godoc
+// @Summary Obtener envío
+// @Description Obtiene un envío por id
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id} [get]
 func (h *ParcelHandler) GetByID(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	id, err := uuid.Parse(idStr)
@@ -228,6 +399,21 @@ func (h *ParcelHandler) GetByID(c *gin.Context) {
 	})
 }
 
+// Register godoc
+// @Summary Registrar envío
+// @Description Cambia estado a registrado
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/register [post]
 func (h *ParcelHandler) Register(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	id, err := uuid.Parse(idStr)
@@ -310,6 +496,21 @@ func (h *ParcelHandler) Register(c *gin.Context) {
 	})
 }
 
+// Board godoc
+// @Summary Embarcar envío
+// @Description Cambia estado a embarcado
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/board [post]
 func (h *ParcelHandler) Board(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	id, err := uuid.Parse(idStr)
@@ -436,196 +637,21 @@ func (h *ParcelHandler) Board(c *gin.Context) {
 	})
 }
 
-func (h *ParcelHandler) Deliver(c *gin.Context) {
-	idStr := strings.TrimSpace(c.Param("id"))
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		_ = c.Error(apperror.NewBadRequest("validation_error", "id inválido", map[string]any{"field": "id"}))
-		return
-	}
-
-	var req DeliverParcelRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
-		return
-	}
-
-	tenantID, _ := c.Get("tenant_id")
-	userID, _ := c.Get("user_id")
-	userName, _ := c.Get("user_name")
-
-	tenant := strings.TrimSpace(anyToString(tenantID))
-	if tenant == "" {
-		_ = c.Error(apperror.NewUnauthorized("unauthorized", "credenciales inválidas", nil))
-		return
-	}
-
-	p, err := h.deliverUC.Execute(c.Request.Context(), usecase.DeliverParcelInput{
-		TenantID:   tenant,
-		UserID:     strings.TrimSpace(anyToString(userID)),
-		UserName:   strings.TrimSpace(anyToString(userName)),
-		ParcelID:   id,
-		PackageKey: req.PackageKey,
-	})
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var registeredAtStr *string
-	if p.RegisteredAt != nil {
-		s := p.RegisteredAt.UTC().Format(time.RFC3339)
-		registeredAtStr = &s
-	}
-	var boardedAtStr *string
-	if p.BoardedAt != nil {
-		s := p.BoardedAt.UTC().Format(time.RFC3339)
-		boardedAtStr = &s
-	}
-	var boardedDepartureAtStr *string
-	if p.BoardedDepartureAt != nil {
-		s := p.BoardedDepartureAt.UTC().Format(time.RFC3339)
-		boardedDepartureAtStr = &s
-	}
-	var arrivedAtStr *string
-	if p.ArrivedAt != nil {
-		s := p.ArrivedAt.UTC().Format(time.RFC3339)
-		arrivedAtStr = &s
-	}
-	var deliveredAtStr *string
-	if p.DeliveredAt != nil {
-		s := p.DeliveredAt.UTC().Format(time.RFC3339)
-		deliveredAtStr = &s
-	}
-	var departedAtStr *string
-	if p.DepartedAt != nil {
-		s := p.DepartedAt.UTC().Format(time.RFC3339)
-		departedAtStr = &s
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": CreateParcelResponse{
-			ID:                  p.ID,
-			Status:              string(p.Status),
-			ShipmentType:        string(p.ShipmentType),
-			OriginOfficeID:      p.OriginOfficeID,
-			DestinationOfficeID: p.DestinationOfficeID,
-			SenderPersonID:      p.SenderPersonID,
-			RecipientPersonID:   p.RecipientPersonID,
-			Notes:               p.Notes,
-			CreatedAt:           p.CreatedAt.UTC().Format(time.RFC3339),
-			RegisteredAt:        registeredAtStr,
-			BoardedVehicleID:    p.BoardedVehicleID,
-			BoardedTripID:       p.BoardedTripID,
-			BoardedDepartureAt:  boardedDepartureAtStr,
-			BoardedAt:           boardedAtStr,
-			BoardedByUserID:     p.BoardedByUserID,
-			DepartedAt:          departedAtStr,
-			DepartedByUserID:    p.DepartedByUserID,
-			ArrivedAt:           arrivedAtStr,
-			ArrivedByUserID:     p.ArrivedByUserID,
-			DeliveredAt:         deliveredAtStr,
-			DeliveredByUserID:   p.DeliveredByUserID,
-		},
-	})
-}
-
-func (h *ParcelHandler) Arrive(c *gin.Context) {
-	idStr := strings.TrimSpace(c.Param("id"))
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		_ = c.Error(apperror.NewBadRequest("validation_error", "id inválido", map[string]any{"field": "id"}))
-		return
-	}
-
-	var req ArriveParcelRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
-		return
-	}
-
-	tenantID, _ := c.Get("tenant_id")
-	userID, _ := c.Get("user_id")
-	userName, _ := c.Get("user_name")
-
-	tenant := strings.TrimSpace(anyToString(tenantID))
-	if tenant == "" {
-		_ = c.Error(apperror.NewUnauthorized("unauthorized", "credenciales inválidas", nil))
-		return
-	}
-
-	p, err := h.arriveUC.Execute(c.Request.Context(), usecase.ArriveParcelInput{
-		TenantID:            tenant,
-		UserID:              strings.TrimSpace(anyToString(userID)),
-		UserName:            strings.TrimSpace(anyToString(userName)),
-		ParcelID:            id,
-		DestinationOfficeID: req.DestinationOfficeID,
-	})
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var registeredAtStr *string
-	if p.RegisteredAt != nil {
-		s := p.RegisteredAt.UTC().Format(time.RFC3339)
-		registeredAtStr = &s
-	}
-	var boardedAtStr *string
-	if p.BoardedAt != nil {
-		s := p.BoardedAt.UTC().Format(time.RFC3339)
-		boardedAtStr = &s
-	}
-	var boardedDepartureAtStr *string
-	if p.BoardedDepartureAt != nil {
-		s := p.BoardedDepartureAt.UTC().Format(time.RFC3339)
-		boardedDepartureAtStr = &s
-	}
-	var arrivedAtStr *string
-	if p.ArrivedAt != nil {
-		s := p.ArrivedAt.UTC().Format(time.RFC3339)
-		arrivedAtStr = &s
-	}
-	var deliveredAtStr *string
-	if p.DeliveredAt != nil {
-		s := p.DeliveredAt.UTC().Format(time.RFC3339)
-		deliveredAtStr = &s
-	}
-	var departedAtStr *string
-	if p.DepartedAt != nil {
-		s := p.DepartedAt.UTC().Format(time.RFC3339)
-		departedAtStr = &s
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": CreateParcelResponse{
-			ID:                  p.ID,
-			Status:              string(p.Status),
-			ShipmentType:        string(p.ShipmentType),
-			OriginOfficeID:      p.OriginOfficeID,
-			DestinationOfficeID: p.DestinationOfficeID,
-			SenderPersonID:      p.SenderPersonID,
-			RecipientPersonID:   p.RecipientPersonID,
-			Notes:               p.Notes,
-			CreatedAt:           p.CreatedAt.UTC().Format(time.RFC3339),
-			RegisteredAt:        registeredAtStr,
-			BoardedVehicleID:    p.BoardedVehicleID,
-			BoardedTripID:       p.BoardedTripID,
-			BoardedDepartureAt:  boardedDepartureAtStr,
-			BoardedAt:           boardedAtStr,
-			BoardedByUserID:     p.BoardedByUserID,
-			DepartedAt:          departedAtStr,
-			DepartedByUserID:    p.DepartedByUserID,
-			ArrivedAt:           arrivedAtStr,
-			ArrivedByUserID:     p.ArrivedByUserID,
-			DeliveredAt:         deliveredAtStr,
-			DeliveredByUserID:   p.DeliveredByUserID,
-		},
-	})
-}
-
+// Depart godoc
+// @Summary Salida de envío
+// @Description Cambia estado a en ruta
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/depart [post]
 func (h *ParcelHandler) Depart(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	id, err := uuid.Parse(idStr)
@@ -744,165 +770,91 @@ func (h *ParcelHandler) Depart(c *gin.Context) {
 	})
 }
 
-func (h *ParcelHandler) List(c *gin.Context) {
+// Arrive godoc
+// @Summary Llegada a destino
+// @Description Cambia estado a en oficina destino
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/arrive [post]
+func (h *ParcelHandler) Arrive(c *gin.Context) {
+	idStr := strings.TrimSpace(c.Param("id"))
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		_ = c.Error(apperror.NewBadRequest("validation_error", "id inválido", map[string]any{"field": "id"}))
+		return
+	}
+
+	var req ArriveParcelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
+		return
+	}
+
 	tenantID, _ := c.Get("tenant_id")
+	userID, _ := c.Get("user_id")
+	userName, _ := c.Get("user_name")
+
 	tenant := strings.TrimSpace(anyToString(tenantID))
 	if tenant == "" {
 		_ = c.Error(apperror.NewUnauthorized("unauthorized", "credenciales inválidas", nil))
 		return
 	}
 
-	var statusPtr *domain.ParcelStatus
-	statusStr := strings.TrimSpace(c.Query("status"))
-	if statusStr != "" {
-		s := domain.ParcelStatus(statusStr)
-		statusPtr = &s
-	}
-
-	parseUUIDQuery := func(key string) (*string, error) {
-		v := strings.TrimSpace(c.Query(key))
-		if v == "" {
-			return nil, nil
-		}
-		if _, err := uuid.Parse(v); err != nil {
-			return nil, apperror.NewBadRequest("validation_error", key+" inválido", map[string]any{"field": key})
-		}
-		return &v, nil
-	}
-
-	originOfficeID, err := parseUUIDQuery("origin_office_id")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	destinationOfficeID, err := parseUUIDQuery("destination_office_id")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	vehicleID, err := parseUUIDQuery("vehicle_id")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	senderPersonID, err := parseUUIDQuery("sender_person_id")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	recipientPersonID, err := parseUUIDQuery("recipient_person_id")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var fromPtr *time.Time
-	fromStr := strings.TrimSpace(c.Query("from"))
-	if fromStr != "" {
-		tm, err := time.Parse(time.RFC3339, fromStr)
-		if err != nil {
-			_ = c.Error(apperror.NewBadRequest("validation_error", "from inválido", map[string]any{"field": "from"}))
-			return
-		}
-		ut := tm.UTC()
-		fromPtr = &ut
-	}
-
-	var toPtr *time.Time
-	toStr := strings.TrimSpace(c.Query("to"))
-	if toStr != "" {
-		tm, err := time.Parse(time.RFC3339, toStr)
-		if err != nil {
-			_ = c.Error(apperror.NewBadRequest("validation_error", "to inválido", map[string]any{"field": "to"}))
-			return
-		}
-		ut := tm.UTC()
-		toPtr = &ut
-	}
-
-	limit := 50
-	if l := strings.TrimSpace(c.Query("limit")); l != "" {
-		v, err := strconv.Atoi(l)
-		if err != nil {
-			_ = c.Error(apperror.NewBadRequest("validation_error", "limit inválido", map[string]any{"field": "limit"}))
-			return
-		}
-		limit = v
-	}
-	if limit <= 0 {
-		limit = 50
-	}
-	if limit > 200 {
-		limit = 200
-	}
-
-	offset := 0
-	if o := strings.TrimSpace(c.Query("offset")); o != "" {
-		v, err := strconv.Atoi(o)
-		if err != nil {
-			_ = c.Error(apperror.NewBadRequest("validation_error", "offset inválido", map[string]any{"field": "offset"}))
-			return
-		}
-		offset = v
-	}
-	if offset < 0 {
-		offset = 0
-	}
-
-	out, err := h.listUC.Execute(c.Request.Context(), usecase.ListParcelsInput{
-		TenantID: tenant,
-		Filters: port.ListParcelFilters{
-			Status:              statusPtr,
-			OriginOfficeID:      originOfficeID,
-			DestinationOfficeID: destinationOfficeID,
-			VehicleID:           vehicleID,
-			SenderPersonID:      senderPersonID,
-			RecipientPersonID:   recipientPersonID,
-			FromCreatedAt:       fromPtr,
-			ToCreatedAt:         toPtr,
-			Limit:               limit,
-			Offset:              offset,
-		},
+	p, err := h.arriveUC.Execute(c.Request.Context(), usecase.ArriveParcelInput{
+		TenantID:            tenant,
+		UserID:              strings.TrimSpace(anyToString(userID)),
+		UserName:            strings.TrimSpace(anyToString(userName)),
+		ParcelID:            id,
+		DestinationOfficeID: req.DestinationOfficeID,
 	})
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	items := make([]CreateParcelResponse, 0, len(out.Items))
-	for _, p := range out.Items {
-		var registeredAtStr *string
-		if p.RegisteredAt != nil {
-			s := p.RegisteredAt.UTC().Format(time.RFC3339)
-			registeredAtStr = &s
-		}
-		var boardedAtStr *string
-		if p.BoardedAt != nil {
-			s := p.BoardedAt.UTC().Format(time.RFC3339)
-			boardedAtStr = &s
-		}
-		var boardedDepartureAtStr *string
-		if p.BoardedDepartureAt != nil {
-			s := p.BoardedDepartureAt.UTC().Format(time.RFC3339)
-			boardedDepartureAtStr = &s
-		}
-		var departedAtStr *string
-		if p.DepartedAt != nil {
-			s := p.DepartedAt.UTC().Format(time.RFC3339)
-			departedAtStr = &s
-		}
-		var arrivedAtStr *string
-		if p.ArrivedAt != nil {
-			s := p.ArrivedAt.UTC().Format(time.RFC3339)
-			arrivedAtStr = &s
-		}
-		var deliveredAtStr *string
-		if p.DeliveredAt != nil {
-			s := p.DeliveredAt.UTC().Format(time.RFC3339)
-			deliveredAtStr = &s
-		}
+	var registeredAtStr *string
+	if p.RegisteredAt != nil {
+		s := p.RegisteredAt.UTC().Format(time.RFC3339)
+		registeredAtStr = &s
+	}
+	var boardedAtStr *string
+	if p.BoardedAt != nil {
+		s := p.BoardedAt.UTC().Format(time.RFC3339)
+		boardedAtStr = &s
+	}
+	var boardedDepartureAtStr *string
+	if p.BoardedDepartureAt != nil {
+		s := p.BoardedDepartureAt.UTC().Format(time.RFC3339)
+		boardedDepartureAtStr = &s
+	}
+	var arrivedAtStr *string
+	if p.ArrivedAt != nil {
+		s := p.ArrivedAt.UTC().Format(time.RFC3339)
+		arrivedAtStr = &s
+	}
+	var deliveredAtStr *string
+	if p.DeliveredAt != nil {
+		s := p.DeliveredAt.UTC().Format(time.RFC3339)
+		deliveredAtStr = &s
+	}
+	var departedAtStr *string
+	if p.DepartedAt != nil {
+		s := p.DepartedAt.UTC().Format(time.RFC3339)
+		departedAtStr = &s
+	}
 
-		items = append(items, CreateParcelResponse{
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": CreateParcelResponse{
 			ID:                  p.ID,
 			Status:              string(p.Status),
 			ShipmentType:        string(p.ShipmentType),
@@ -924,18 +876,116 @@ func (h *ParcelHandler) List(c *gin.Context) {
 			ArrivedByUserID:     p.ArrivedByUserID,
 			DeliveredAt:         deliveredAtStr,
 			DeliveredByUserID:   p.DeliveredByUserID,
-		})
+		},
+	})
+}
+
+// Deliver godoc
+// @Summary Entregar envío
+// @Description Cambia estado a entregado
+// @Tags Parcels
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 409 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/deliver [post]
+func (h *ParcelHandler) Deliver(c *gin.Context) {
+	idStr := strings.TrimSpace(c.Param("id"))
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		_ = c.Error(apperror.NewBadRequest("validation_error", "id inválido", map[string]any{"field": "id"}))
+		return
+	}
+
+	var req DeliverParcelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apperror.NewBadRequest("validation_error", "payload inválido", map[string]any{"error": err.Error()}))
+		return
+	}
+
+	tenantID, _ := c.Get("tenant_id")
+	userID, _ := c.Get("user_id")
+	userName, _ := c.Get("user_name")
+
+	tenant := strings.TrimSpace(anyToString(tenantID))
+	if tenant == "" {
+		_ = c.Error(apperror.NewUnauthorized("unauthorized", "credenciales inválidas", nil))
+		return
+	}
+
+	p, err := h.deliverUC.Execute(c.Request.Context(), usecase.DeliverParcelInput{
+		TenantID:   tenant,
+		UserID:     strings.TrimSpace(anyToString(userID)),
+		UserName:   strings.TrimSpace(anyToString(userName)),
+		ParcelID:   id,
+		PackageKey: req.PackageKey,
+	})
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var registeredAtStr *string
+	if p.RegisteredAt != nil {
+		s := p.RegisteredAt.UTC().Format(time.RFC3339)
+		registeredAtStr = &s
+	}
+	var boardedAtStr *string
+	if p.BoardedAt != nil {
+		s := p.BoardedAt.UTC().Format(time.RFC3339)
+		boardedAtStr = &s
+	}
+	var boardedDepartureAtStr *string
+	if p.BoardedDepartureAt != nil {
+		s := p.BoardedDepartureAt.UTC().Format(time.RFC3339)
+		boardedDepartureAtStr = &s
+	}
+	var arrivedAtStr *string
+	if p.ArrivedAt != nil {
+		s := p.ArrivedAt.UTC().Format(time.RFC3339)
+		arrivedAtStr = &s
+	}
+	var deliveredAtStr *string
+	if p.DeliveredAt != nil {
+		s := p.DeliveredAt.UTC().Format(time.RFC3339)
+		deliveredAtStr = &s
+	}
+	var departedAtStr *string
+	if p.DepartedAt != nil {
+		s := p.DepartedAt.UTC().Format(time.RFC3339)
+		departedAtStr = &s
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": ParcelListResponse{
-			Items: items,
-			Pagination: ParcelListPagination{
-				Limit:  limit,
-				Offset: offset,
-				Count:  out.Count,
-			},
+		"data": CreateParcelResponse{
+			ID:                  p.ID,
+			Status:              string(p.Status),
+			ShipmentType:        string(p.ShipmentType),
+			OriginOfficeID:      p.OriginOfficeID,
+			DestinationOfficeID: p.DestinationOfficeID,
+			SenderPersonID:      p.SenderPersonID,
+			RecipientPersonID:   p.RecipientPersonID,
+			Notes:               p.Notes,
+			CreatedAt:           p.CreatedAt.UTC().Format(time.RFC3339),
+			RegisteredAt:        registeredAtStr,
+			BoardedVehicleID:    p.BoardedVehicleID,
+			BoardedTripID:       p.BoardedTripID,
+			BoardedDepartureAt:  boardedDepartureAtStr,
+			BoardedAt:           boardedAtStr,
+			BoardedByUserID:     p.BoardedByUserID,
+			DepartedAt:          departedAtStr,
+			DepartedByUserID:    p.DepartedByUserID,
+			ArrivedAt:           arrivedAtStr,
+			ArrivedByUserID:     p.ArrivedByUserID,
+			DeliveredAt:         deliveredAtStr,
+			DeliveredByUserID:   p.DeliveredByUserID,
 		},
 	})
 }

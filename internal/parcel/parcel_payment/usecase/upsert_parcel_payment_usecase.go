@@ -21,16 +21,22 @@ type UpsertParcelPaymentInput struct {
 	Currency    domain.Currency
 	Amount      float64
 	Notes       *string
+
+	Channel      domain.PaymentChannel
+	OfficeID     *string
+	CashboxID    *string
+	SellerUserID *string
 }
 
 type UpsertParcelPaymentUseCase struct {
 	parcelRepo  coreport.ParcelReader
 	paymentRepo port.ParcelPaymentRepository
 	opts        coreport.TenantOptionsProvider
+	cashbox     coreport.CashboxClient
 }
 
-func NewUpsertParcelPaymentUseCase(parcelRepo coreport.ParcelReader, paymentRepo port.ParcelPaymentRepository, opts coreport.TenantOptionsProvider) *UpsertParcelPaymentUseCase {
-	return &UpsertParcelPaymentUseCase{parcelRepo: parcelRepo, paymentRepo: paymentRepo, opts: opts}
+func NewUpsertParcelPaymentUseCase(parcelRepo coreport.ParcelReader, paymentRepo port.ParcelPaymentRepository, opts coreport.TenantOptionsProvider, cashbox coreport.CashboxClient) *UpsertParcelPaymentUseCase {
+	return &UpsertParcelPaymentUseCase{parcelRepo: parcelRepo, paymentRepo: paymentRepo, opts: opts, cashbox: cashbox}
 }
 
 func (u *UpsertParcelPaymentUseCase) Execute(ctx context.Context, in UpsertParcelPaymentInput) (*domain.ParcelPayment, error) {
@@ -45,6 +51,31 @@ func (u *UpsertParcelPaymentUseCase) Execute(ctx context.Context, in UpsertParce
 	}
 	if in.PaymentType != domain.PaymentTypeFree && in.Amount <= 0 {
 		return nil, apperror.NewBadRequest("validation_error", "amount debe ser > 0", map[string]any{"field": "amount"})
+	}
+
+	ch := in.Channel
+	if strings.TrimSpace(string(ch)) == "" {
+		ch = domain.PaymentChannelCounter
+	}
+	switch ch {
+	case domain.PaymentChannelCounter, domain.PaymentChannelWeb:
+	default:
+		return nil, apperror.NewBadRequest("validation_error", "channel inválido", map[string]any{"field": "channel"})
+	}
+
+	if ch == domain.PaymentChannelCounter {
+		if in.OfficeID == nil || strings.TrimSpace(*in.OfficeID) == "" {
+			return nil, apperror.NewBadRequest("validation_error", "office_id requerido", map[string]any{"field": "office_id"})
+		}
+
+		if in.CashboxID != nil && strings.TrimSpace(*in.CashboxID) != "" && u.cashbox != nil {
+			open, err := u.cashbox.IsOpen(ctx, in.TenantID, strings.TrimSpace(*in.CashboxID))
+			if err != nil {
+				// TODO: logger (no bloqueante)
+			} else if !open {
+				return nil, apperror.New("cashbox_closed", "caja cerrada", map[string]any{"cashbox_id": strings.TrimSpace(*in.CashboxID)}, 409)
+			}
+		}
 	}
 
 	p, err := u.parcelRepo.GetByID(ctx, in.TenantID, in.ParcelID)
@@ -91,20 +122,40 @@ func (u *UpsertParcelPaymentUseCase) Execute(ctx context.Context, in UpsertParce
 	}
 
 	pay := domain.ParcelPayment{
-		ID:          uuid.NewString(),
-		TenantID:    in.TenantID,
-		ParcelID:    in.ParcelID.String(),
-		PaymentType: in.PaymentType,
-		Currency:    in.Currency,
-		Amount:      in.Amount,
-		Notes:       in.Notes,
-		Status:      domain.PaymentStatusPending,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:           uuid.NewString(),
+		TenantID:     in.TenantID,
+		ParcelID:     in.ParcelID.String(),
+		PaymentType:  in.PaymentType,
+		Currency:     in.Currency,
+		Amount:       in.Amount,
+		Notes:        in.Notes,
+		Status:       domain.PaymentStatusPending,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		PaidAt:       nil,
+		PaidByUserID: nil,
+		Channel:      ch,
+		OfficeID:     in.OfficeID,
+		CashboxID:    in.CashboxID,
+		SellerUserID: in.SellerUserID,
 	}
 	if existing != nil {
 		pay.ID = existing.ID
 		pay.CreatedAt = existing.CreatedAt
+		pay.PaidAt = existing.PaidAt
+		pay.PaidByUserID = existing.PaidByUserID
+		if strings.TrimSpace(string(in.Channel)) == "" {
+			pay.Channel = existing.Channel
+		}
+		if in.OfficeID == nil {
+			pay.OfficeID = existing.OfficeID
+		}
+		if in.CashboxID == nil {
+			pay.CashboxID = existing.CashboxID
+		}
+		if in.SellerUserID == nil {
+			pay.SellerUserID = existing.SellerUserID
+		}
 	}
 
 	return u.paymentRepo.Upsert(ctx, in.TenantID, pay)

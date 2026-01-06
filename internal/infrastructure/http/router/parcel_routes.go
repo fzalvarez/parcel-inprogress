@@ -4,15 +4,19 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"ms-parcel-core/internal/infrastructure/http/handler"
+	parcelclients "ms-parcel-core/internal/parcel/parcel_core/infrastructure/clients"
 	parcelrepo "ms-parcel-core/internal/parcel/parcel_core/infrastructure/repository"
 	coreport "ms-parcel-core/internal/parcel/parcel_core/port"
 	"ms-parcel-core/internal/parcel/parcel_core/usecase"
+	docclients "ms-parcel-core/internal/parcel/parcel_documents/infrastructure/clients"
 	docrepo "ms-parcel-core/internal/parcel/parcel_documents/infrastructure/repository"
 	docusecase "ms-parcel-core/internal/parcel/parcel_documents/usecase"
 	itemrepo "ms-parcel-core/internal/parcel/parcel_item/infrastructure/repository"
 	itemusecase "ms-parcel-core/internal/parcel/parcel_item/usecase"
 	paymentrepo "ms-parcel-core/internal/parcel/parcel_payment/infrastructure/repository"
 	paymentusecase "ms-parcel-core/internal/parcel/parcel_payment/usecase"
+	pricingrepo "ms-parcel-core/internal/parcel/parcel_pricing/infrastructure/repository"
+	pricingusecase "ms-parcel-core/internal/parcel/parcel_pricing/usecase"
 	trackingrecorder "ms-parcel-core/internal/parcel/parcel_tracking/infrastructure/recorder"
 	trackingrepo "ms-parcel-core/internal/parcel/parcel_tracking/infrastructure/repository"
 	trackingusecase "ms-parcel-core/internal/parcel/parcel_tracking/usecase"
@@ -40,12 +44,19 @@ func RegisterParcelRoutesWithDeps(
 
 	parcelsHandler := handler.NewParcelHandler(createUC, getUC, registerUC, boardUC, deliverUC, arriveUC, departUC, listUC)
 
-	addItemUC := itemusecase.NewAddParcelItemUseCase(repo, itemRepo, trkRecorder, tenantOptionsProvider)
+	priceRuleRepo := pricingrepo.NewInMemoryPriceRuleRepository()
+	createRuleUC := pricingusecase.NewCreatePriceRuleUseCase(priceRuleRepo)
+	updateRuleUC := pricingusecase.NewUpdatePriceRuleUseCase(priceRuleRepo)
+	listRuleUC := pricingusecase.NewListPriceRulesUseCase(priceRuleRepo)
+	rulesHandler := handler.NewPriceRuleHandler(createRuleUC, updateRuleUC, listRuleUC)
+
+	addItemUC := itemusecase.NewAddParcelItemUseCase(repo, itemRepo, trkRecorder, tenantOptionsProvider, priceRuleRepo)
 	listItemsUC := itemusecase.NewListParcelItemsUseCase(repo, itemRepo)
 	deleteItemUC := itemusecase.NewDeleteParcelItemUseCase(repo, itemRepo, trkRecorder)
 	itemsHandler := handler.NewParcelItemHandler(addItemUC, listItemsUC, deleteItemUC)
 
-	upsertPayUC := paymentusecase.NewUpsertParcelPaymentUseCase(repo, payRepo, tenantOptionsProvider)
+	cashboxClient := parcelclients.NewCashboxStubClient()
+	upsertPayUC := paymentusecase.NewUpsertParcelPaymentUseCase(repo, payRepo, tenantOptionsProvider, cashboxClient)
 	getPayUC := paymentusecase.NewGetParcelPaymentUseCase(payRepo)
 	markPaidUC := paymentusecase.NewMarkPaidParcelPaymentUseCase(repo, payRepo, tenantOptionsProvider)
 	paymentHandler := handler.NewParcelPaymentHandler(upsertPayUC, getPayUC, markPaidUC)
@@ -58,7 +69,8 @@ func RegisterParcelRoutesWithDeps(
 	summaryHandler := handler.NewParcelSummaryHandler(summaryUC)
 
 	printRepo := docrepo.NewInMemoryPrintRepository()
-	registerPrintUC := docusecase.NewRegisterPrintUseCase(repo, printRepo, tenantOptionsProvider)
+	qrGen := docclients.NewStubQRGenerator()
+	registerPrintUC := docusecase.NewRegisterPrintUseCase(repo, printRepo, tenantOptionsProvider, qrGen)
 	docsHandler := handler.NewParcelDocumentsHandler(registerPrintUC, printRepo)
 
 	parcels := rg.Group("/parcels")
@@ -88,5 +100,12 @@ func RegisterParcelRoutesWithDeps(
 
 		parcels.POST("/:id/documents/print", docsHandler.RegisterPrint)
 		parcels.GET("/:id/documents/prints", docsHandler.ListPrints)
+	}
+
+	pricing := rg.Group("/pricing")
+	{
+		pricing.POST("/rules", rulesHandler.Create)
+		pricing.PUT("/rules/:id", rulesHandler.Update)
+		pricing.GET("/rules", rulesHandler.List)
 	}
 }

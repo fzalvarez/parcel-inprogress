@@ -48,6 +48,10 @@ func (u *MarkPaidParcelPaymentUseCase) Execute(ctx context.Context, tenantID str
 		return nil, apperror.New("not_found", "pago no encontrado", map[string]any{"parcel_id": parcelID.String()}, 404)
 	}
 
+	if strings.TrimSpace(string(pay.Channel)) == "" {
+		pay.Channel = domain.PaymentChannelCounter
+	}
+
 	defaults := coreport.ParcelOptions{
 		RequirePackageKey:       true,
 		UsePriceTable:           true,

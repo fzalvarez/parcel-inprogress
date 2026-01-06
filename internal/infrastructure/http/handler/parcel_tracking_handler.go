@@ -20,6 +20,20 @@ func NewParcelTrackingHandler(listUC *usecase.ListTrackingUseCase) *ParcelTracki
 	return &ParcelTrackingHandler{listUC: listUC}
 }
 
+// ListByParcelID godoc
+// @Summary Listar tracking
+// @Description Lista eventos de tracking del envío
+// @Tags ParcelTracking
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string false "Bearer token"
+// @Param id path string true "UUID" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope
+// @Failure 400 {object} handler.ErrorResponse
+// @Failure 401 {object} handler.ErrorResponse
+// @Failure 404 {object} handler.ErrorResponse
+// @Failure 500 {object} handler.ErrorResponse
+// @Router /parcels/{id}/tracking [get]
 func (h *ParcelTrackingHandler) ListByParcelID(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
 	if _, err := uuid.Parse(idStr); err != nil {
