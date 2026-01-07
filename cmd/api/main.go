@@ -5,16 +5,19 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 
 	"ms-parcel-core/internal/infrastructure/http/middleware"
 	httpRouter "ms-parcel-core/internal/infrastructure/http/router"
 )
 
 func main() {
+
+	_ = godotenv.Load(".env")
 	// Gin base (manténlo simple por ahora)
 	r := gin.New()
 	r.Use(gin.Recovery())
-	r.Use(middleware.DevClaimsMiddleware())
+	r.Use(middleware.AuthMiddleware())
 	r.Use(middleware.ErrorMiddleware())
 
 	// Registrar rutas del monolito

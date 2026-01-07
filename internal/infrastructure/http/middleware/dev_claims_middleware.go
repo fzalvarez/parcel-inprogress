@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func DevClaimsMiddleware() gin.HandlerFunc {
+func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if os.Getenv("DEV_BYPASS_AUTH") == "1" {
 			_, hasTenant := c.Get("tenant_id")
