@@ -20,6 +20,7 @@ type PriceRuleRequest struct {
 	Unit                string  `json:"unit" binding:"required,oneof=PER_KG PER_ITEM"`
 	Price               float64 `json:"price" binding:"required"`
 	Currency            string  `json:"currency" binding:"required,oneof=PEN USD"`
+	Priority            int     `json:"priority" binding:"omitempty,min=0,max=100"`
 	Active              bool    `json:"active"`
 }
 
@@ -31,6 +32,7 @@ type PriceRuleResponse struct {
 	Unit                string  `json:"unit"`
 	Price               float64 `json:"price"`
 	Currency            string  `json:"currency"`
+	Priority            int     `json:"priority"`
 	Active              bool    `json:"active"`
 	CreatedAt           string  `json:"created_at"`
 	UpdatedAt           string  `json:"updated_at"`
@@ -83,6 +85,7 @@ func (h *PriceRuleHandler) Create(c *gin.Context) {
 		Unit:                req.Unit,
 		Price:               req.Price,
 		Currency:            req.Currency,
+		Priority:            req.Priority,
 		Active:              req.Active,
 	})
 	if err != nil {
@@ -140,6 +143,7 @@ func (h *PriceRuleHandler) Update(c *gin.Context) {
 		Unit:                req.Unit,
 		Price:               req.Price,
 		Currency:            req.Currency,
+		Priority:            req.Priority,
 		Active:              req.Active,
 	})
 	if err != nil {
@@ -192,6 +196,7 @@ func toPriceRuleResponse(r pricingdomain.PriceRule) PriceRuleResponse {
 		Unit:                string(r.Unit),
 		Price:               r.Price,
 		Currency:            r.Currency,
+		Priority:            r.Priority,
 		Active:              r.Active,
 		CreatedAt:           r.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:           r.UpdatedAt.UTC().Format(time.RFC3339),

@@ -26,6 +26,7 @@ type CreatePriceRuleInput struct {
 	Unit                string
 	Price               float64
 	Currency            string
+	Priority            int
 	Active              bool
 }
 
@@ -54,6 +55,7 @@ func (u *CreatePriceRuleUseCase) Execute(ctx context.Context, in CreatePriceRule
 		Unit:                domain.PriceUnit(strings.TrimSpace(in.Unit)),
 		Price:               in.Price,
 		Currency:            strings.TrimSpace(in.Currency),
+		Priority:            in.Priority,
 		Active:              in.Active,
 	}
 

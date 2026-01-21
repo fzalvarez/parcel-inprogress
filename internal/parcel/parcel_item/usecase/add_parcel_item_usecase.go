@@ -23,6 +23,9 @@ type AddParcelItemInput struct {
 	Description string
 	Quantity    int
 	WeightKg    float64
+	LengthCm    *float64
+	WidthCm     *float64
+	HeightCm    *float64
 	UnitPrice   float64
 	ContentType *string
 	Notes       *string
@@ -40,25 +43,27 @@ func NewAddParcelItemUseCase(parcelReader coreport.ParcelReader, repo port.Parce
 	return &AddParcelItemUseCase{parcelReader: parcelReader, repo: repo, tracking: tracking, optionsProvider: optionsProvider, priceRules: priceRules}
 }
 
-func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInput) (uuid.UUID, error) {
+func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInput) (*domain.ParcelItem, error) {
 	if strings.TrimSpace(in.TenantID) == "" {
-		return uuid.Nil, apperror.NewUnauthorized("unauthorized", "credenciales inválidas", nil)
+		return nil, apperror.NewUnauthorized("unauthorized", "credenciales inválidas", nil)
 	}
 	if in.ParcelID == uuid.Nil {
-		return uuid.Nil, apperror.NewBadRequest("validation_error", "id inválido", map[string]any{"field": "id"})
+		return nil, apperror.NewBadRequest("validation_error", "id inválido", map[string]any{"field": "id"})
 	}
 
 	parcel, err := u.parcelReader.GetByID(ctx, in.TenantID, in.ParcelID)
 	if err != nil {
-		return uuid.Nil, err
+		return nil, err
 	}
 	if parcel == nil {
-		return uuid.Nil, apperror.New("not_found", "parcel no encontrado", map[string]any{"id": in.ParcelID.String()}, 404)
+		return nil, apperror.New("not_found", "parcel no encontrado", map[string]any{"id": in.ParcelID.String()}, 404)
 	}
 
 	defaults := coreport.ParcelOptions{
 		RequirePackageKey:       true,
 		UsePriceTable:           true,
+		UseVolumetricWeight:     false,
+		VolumetricDivisor:       6000,
 		AllowManualPrice:        false,
 		AllowOverridePriceTable: true,
 		AllowPayInDestination:   false,
@@ -75,39 +80,64 @@ func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInpu
 		}
 	}
 
+	// Cálculo de peso volumétrico y facturable
+	var volumetricWeight *float64
+	billableWeight := in.WeightKg
+
+	if opts.UseVolumetricWeight && in.LengthCm != nil && in.WidthCm != nil && in.HeightCm != nil {
+		divisor := float64(opts.VolumetricDivisor)
+		if divisor <= 0 {
+			divisor = 6000
+		}
+		vw := (*in.LengthCm * *in.WidthCm * *in.HeightCm) / divisor
+		volumetricWeight = &vw
+
+		if vw > in.WeightKg {
+			billableWeight = vw
+		}
+	}
+
 	unitPrice := in.UnitPrice
 
 	if opts.UsePriceTable {
 		if u.priceRules == nil {
-			return uuid.Nil, apperror.New("price_rule_not_found", "regla de precios no configurada", nil, 409)
+			return nil, apperror.New("price_rule_not_found", "regla de precios no configurada", nil, 409)
 		}
 
 		rule, err := u.priceRules.FindMatch(ctx, in.TenantID, string(parcel.ShipmentType), parcel.OriginOfficeID, parcel.DestinationOfficeID)
 		if err != nil {
-			return uuid.Nil, err
+			return nil, err
 		}
 		if rule == nil {
-			return uuid.Nil, apperror.New("price_rule_not_found", "regla de precios no encontrada", map[string]any{"shipment_type": parcel.ShipmentType, "origin_office_id": parcel.OriginOfficeID, "destination_office_id": parcel.DestinationOfficeID}, 409)
-		}
-
-		suggested := 0.0
-		switch rule.Unit {
-		case pricingdomain.PriceUnitPerItem:
-			suggested = rule.Price * float64(in.Quantity)
-		case pricingdomain.PriceUnitPerKg:
-			suggested = rule.Price * in.WeightKg
-		default:
-			return uuid.Nil, apperror.New("validation_error", "unit inválido", map[string]any{"unit": rule.Unit}, 400)
-		}
-
-		if !opts.AllowOverridePriceTable {
-			if !opts.AllowManualPrice && in.UnitPrice > 0 {
-				return uuid.Nil, apperror.New("manual_price_disabled", "precio manual deshabilitado", nil, 409)
+			if !opts.AllowManualPrice || in.UnitPrice <= 0 {
+				return nil, apperror.New("price_rule_not_found", "regla de precios no encontrada para esta ruta. Defina una regla específica o use comodín (*)", map[string]any{
+					"shipment_type":         parcel.ShipmentType,
+					"origin_office_id":      parcel.OriginOfficeID,
+					"destination_office_id": parcel.DestinationOfficeID,
+					"hint":                  "Puede crear una regla global usando '*' como origin_office_id o destination_office_id",
+				}, 409)
 			}
-			unitPrice = suggested
+			// Si permite precio manual y el usuario lo envió, continuamos sin regla
 		} else {
-			if in.UnitPrice <= 0 {
+			suggested := 0.0
+			switch rule.Unit {
+			case pricingdomain.PriceUnitPerItem:
+				suggested = rule.Price * float64(in.Quantity)
+			case pricingdomain.PriceUnitPerKg:
+				suggested = rule.Price * billableWeight
+			default:
+				return nil, apperror.New("validation_error", "unit inválido", map[string]any{"unit": rule.Unit}, 400)
+			}
+
+			if !opts.AllowOverridePriceTable {
+				if !opts.AllowManualPrice && in.UnitPrice > 0 {
+					return nil, apperror.New("manual_price_disabled", "precio manual deshabilitado", nil, 409)
+				}
 				unitPrice = suggested
+			} else {
+				if in.UnitPrice <= 0 {
+					unitPrice = suggested
+				}
 			}
 		}
 	}
@@ -115,21 +145,28 @@ func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInpu
 	in.UnitPrice = unitPrice
 
 	item := domain.ParcelItem{
-		ID:          uuid.NewString(),
-		ParcelID:    in.ParcelID.String(),
-		Description: in.Description,
-		Quantity:    in.Quantity,
-		WeightKg:    in.WeightKg,
-		UnitPrice:   in.UnitPrice,
-		ContentType: in.ContentType,
-		Notes:       in.Notes,
-		CreatedAt:   time.Now().UTC(),
+		ID:               uuid.NewString(),
+		ParcelID:         in.ParcelID.String(),
+		Description:      in.Description,
+		Quantity:         in.Quantity,
+		WeightKg:         in.WeightKg,
+		LengthCm:         in.LengthCm,
+		WidthCm:          in.WidthCm,
+		HeightCm:         in.HeightCm,
+		VolumetricWeight: volumetricWeight,
+		BillableWeight:   billableWeight,
+		UnitPrice:        in.UnitPrice,
+		ContentType:      in.ContentType,
+		Notes:            in.Notes,
+		CreatedAt:        time.Now().UTC(),
 	}
 
 	id, err := u.repo.Add(ctx, in.TenantID, item)
 	if err != nil {
-		return uuid.Nil, err
+		return nil, err
 	}
+
+	item.ID = id.String()
 
 	if u.tracking != nil {
 		_ = u.tracking.RecordEvent(ctx, in.TenantID, coreport.TrackingEventDTO{
@@ -147,5 +184,5 @@ func (u *AddParcelItemUseCase) Execute(ctx context.Context, in AddParcelItemInpu
 		// TODO: logger si falla
 	}
 
-	return id, nil
+	return &item, nil
 }

@@ -29,6 +29,7 @@ type UpdatePriceRuleInput struct {
 	Unit                string
 	Price               float64
 	Currency            string
+	Priority            int
 	Active              bool
 }
 
@@ -60,6 +61,7 @@ func (u *UpdatePriceRuleUseCase) Execute(ctx context.Context, in UpdatePriceRule
 		Unit:                domain.PriceUnit(strings.TrimSpace(in.Unit)),
 		Price:               in.Price,
 		Currency:            strings.TrimSpace(in.Currency),
+		Priority:            in.Priority,
 		Active:              in.Active,
 	}
 

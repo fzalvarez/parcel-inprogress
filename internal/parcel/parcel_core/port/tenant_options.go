@@ -5,6 +5,8 @@ import "context"
 type ParcelOptions struct {
 	RequirePackageKey       bool
 	UsePriceTable           bool
+	UseVolumetricWeight     bool
+	VolumetricDivisor       int
 	AllowManualPrice        bool
 	AllowOverridePriceTable bool
 	AllowPayInDestination   bool

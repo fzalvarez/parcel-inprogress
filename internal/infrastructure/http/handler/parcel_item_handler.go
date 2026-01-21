@@ -13,24 +13,32 @@ import (
 )
 
 type CreateParcelItemRequest struct {
-	Description string  `json:"description" binding:"required,max=200"`
-	Quantity    int     `json:"quantity" binding:"required,min=1,max=9999"`
-	WeightKg    float64 `json:"weight_kg" binding:"required,min=0.01,max=9999"`
-	UnitPrice   float64 `json:"unit_price" binding:"required,min=0,max=999999"`
-	ContentType *string `json:"content_type" binding:"omitempty,max=100"`
-	Notes       *string `json:"notes" binding:"omitempty,max=300"`
+	Description string   `json:"description" binding:"required,max=200"`
+	Quantity    int      `json:"quantity" binding:"required,min=1,max=9999"`
+	WeightKg    float64  `json:"weight_kg" binding:"required,min=0.01,max=9999"`
+	LengthCm    *float64 `json:"length_cm" binding:"omitempty,min=0.01,max=9999"`
+	WidthCm     *float64 `json:"width_cm" binding:"omitempty,min=0.01,max=9999"`
+	HeightCm    *float64 `json:"height_cm" binding:"omitempty,min=0.01,max=9999"`
+	UnitPrice   float64  `json:"unit_price" binding:"omitempty,min=0,max=999999"`
+	ContentType *string  `json:"content_type" binding:"omitempty,max=100"`
+	Notes       *string  `json:"notes" binding:"omitempty,max=300"`
 }
 
 type ParcelItemResponse struct {
-	ID          string  `json:"id"`
-	ParcelID    string  `json:"parcel_id"`
-	Description string  `json:"description"`
-	Quantity    int     `json:"quantity"`
-	WeightKg    float64 `json:"weight_kg"`
-	UnitPrice   float64 `json:"unit_price"`
-	ContentType *string `json:"content_type,omitempty"`
-	Notes       *string `json:"notes,omitempty"`
-	CreatedAt   string  `json:"created_at"`
+	ID               string   `json:"id"`
+	ParcelID         string   `json:"parcel_id"`
+	Description      string   `json:"description"`
+	Quantity         int      `json:"quantity"`
+	WeightKg         float64  `json:"weight_kg"`
+	LengthCm         *float64 `json:"length_cm,omitempty"`
+	WidthCm          *float64 `json:"width_cm,omitempty"`
+	HeightCm         *float64 `json:"height_cm,omitempty"`
+	VolumetricWeight *float64 `json:"volumetric_weight,omitempty"`
+	BillableWeight   float64  `json:"billable_weight"`
+	UnitPrice        float64  `json:"unit_price"`
+	ContentType      *string  `json:"content_type,omitempty"`
+	Notes            *string  `json:"notes,omitempty"`
+	CreatedAt        string   `json:"created_at"`
 }
 
 type ParcelItemHandler struct {
@@ -84,7 +92,7 @@ func (h *ParcelItemHandler) Add(c *gin.Context) {
 		return
 	}
 
-	id, err := h.addUC.Execute(c.Request.Context(), itemusecase.AddParcelItemInput{
+	item, err := h.addUC.Execute(c.Request.Context(), itemusecase.AddParcelItemInput{
 		TenantID:    tenant,
 		UserID:      strings.TrimSpace(anyToString(userID)),
 		UserName:    strings.TrimSpace(anyToString(userName)),
@@ -92,6 +100,9 @@ func (h *ParcelItemHandler) Add(c *gin.Context) {
 		Description: req.Description,
 		Quantity:    req.Quantity,
 		WeightKg:    req.WeightKg,
+		LengthCm:    req.LengthCm,
+		WidthCm:     req.WidthCm,
+		HeightCm:    req.HeightCm,
 		UnitPrice:   req.UnitPrice,
 		ContentType: req.ContentType,
 		Notes:       req.Notes,
@@ -104,15 +115,20 @@ func (h *ParcelItemHandler) Add(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": ParcelItemResponse{
-			ID:          id.String(),
-			ParcelID:    parcelID.String(),
-			Description: req.Description,
-			Quantity:    req.Quantity,
-			WeightKg:    req.WeightKg,
-			UnitPrice:   req.UnitPrice,
-			ContentType: req.ContentType,
-			Notes:       req.Notes,
-			CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+			ID:               item.ID,
+			ParcelID:         item.ParcelID,
+			Description:      item.Description,
+			Quantity:         item.Quantity,
+			WeightKg:         item.WeightKg,
+			LengthCm:         item.LengthCm,
+			WidthCm:          item.WidthCm,
+			HeightCm:         item.HeightCm,
+			VolumetricWeight: item.VolumetricWeight,
+			BillableWeight:   item.BillableWeight,
+			UnitPrice:        item.UnitPrice,
+			ContentType:      item.ContentType,
+			Notes:            item.Notes,
+			CreatedAt:        item.CreatedAt.UTC().Format(time.RFC3339),
 		},
 	})
 }
@@ -155,15 +171,20 @@ func (h *ParcelItemHandler) List(c *gin.Context) {
 	out := make([]ParcelItemResponse, 0, len(items))
 	for _, it := range items {
 		out = append(out, ParcelItemResponse{
-			ID:          it.ID,
-			ParcelID:    it.ParcelID,
-			Description: it.Description,
-			Quantity:    it.Quantity,
-			WeightKg:    it.WeightKg,
-			UnitPrice:   it.UnitPrice,
-			ContentType: it.ContentType,
-			Notes:       it.Notes,
-			CreatedAt:   it.CreatedAt.UTC().Format(time.RFC3339),
+			ID:               it.ID,
+			ParcelID:         it.ParcelID,
+			Description:      it.Description,
+			Quantity:         it.Quantity,
+			WeightKg:         it.WeightKg,
+			LengthCm:         it.LengthCm,
+			WidthCm:          it.WidthCm,
+			HeightCm:         it.HeightCm,
+			VolumetricWeight: it.VolumetricWeight,
+			BillableWeight:   it.BillableWeight,
+			UnitPrice:        it.UnitPrice,
+			ContentType:      it.ContentType,
+			Notes:            it.Notes,
+			CreatedAt:        it.CreatedAt.UTC().Format(time.RFC3339),
 		})
 	}
 

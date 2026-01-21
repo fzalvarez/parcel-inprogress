@@ -29,6 +29,8 @@ func (c *TenantConfigStubClient) GetParcelOptions(ctx context.Context, tenantID 
 	return port.ParcelOptions{
 		RequirePackageKey:       true,
 		UsePriceTable:           true,
+		UseVolumetricWeight:     false,
+		VolumetricDivisor:       6000,
 		AllowManualPrice:        false,
 		AllowOverridePriceTable: true,
 		AllowPayInDestination:   false,

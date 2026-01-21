@@ -114,6 +114,14 @@ func (r *InMemoryPriceRuleRepository) FindMatch(ctx context.Context, tenantID st
 		return nil, nil
 	}
 
+	// Búsqueda jerárquica por prioridad:
+	// 1. Coincidencia exacta: Origin -> Destination
+	// 2. Origen específico, destino comodín: Origin -> *
+	// 3. Origen comodín, destino específico: * -> Destination
+	// 4. Comodín total: * -> *
+
+	var candidates []domain.PriceRule
+
 	for _, rule := range byTenant {
 		if !rule.Active {
 			continue
@@ -121,15 +129,51 @@ func (r *InMemoryPriceRuleRepository) FindMatch(ctx context.Context, tenantID st
 		if string(rule.ShipmentType) != shipmentType {
 			continue
 		}
-		if rule.OriginOfficeID != originOfficeID {
-			continue
+
+		originMatch := rule.OriginOfficeID == originOfficeID || rule.OriginOfficeID == domain.WildcardOffice
+		destMatch := rule.DestinationOfficeID == destinationOfficeID || rule.DestinationOfficeID == domain.WildcardOffice
+
+		if originMatch && destMatch {
+			candidates = append(candidates, rule)
 		}
-		if rule.DestinationOfficeID != destinationOfficeID {
-			continue
-		}
-		cp := rule
-		return &cp, nil
 	}
 
-	return nil, nil
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	// Ordenar por especificidad (prioridad implícita)
+	best := candidates[0]
+	bestScore := calculateRuleScore(best, originOfficeID, destinationOfficeID)
+
+	for i := 1; i < len(candidates); i++ {
+		score := calculateRuleScore(candidates[i], originOfficeID, destinationOfficeID)
+		if score > bestScore || (score == bestScore && candidates[i].Priority > best.Priority) {
+			best = candidates[i]
+			bestScore = score
+		}
+	}
+
+	cp := best
+	return &cp, nil
+}
+
+// calculateRuleScore asigna puntaje de especificidad
+// Mayor puntaje = más específica = mayor prioridad
+func calculateRuleScore(rule domain.PriceRule, targetOrigin, targetDest string) int {
+	score := 0
+
+	if rule.OriginOfficeID == targetOrigin {
+		score += 10 // Origen exacto
+	} else if rule.OriginOfficeID == domain.WildcardOffice {
+		score += 1 // Origen comodín
+	}
+
+	if rule.DestinationOfficeID == targetDest {
+		score += 10 // Destino exacto
+	} else if rule.DestinationOfficeID == domain.WildcardOffice {
+		score += 1 // Destino comodín
+	}
+
+	return score
 }
