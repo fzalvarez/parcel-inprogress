@@ -1,7 +1,7 @@
 # Índice de Documentación - QuatroBus Parcel
 
-**Última Actualización:** 20 de enero de 2026  
-**Versión del Proyecto:** 1.0
+**Última Actualización:** 21 de enero de 2026  
+**Versión del Proyecto:** 2.0
 
 ---
 
@@ -23,6 +23,8 @@
 |-----------|-----------|-----------|
 | [.github/instructions/go_profile.instructions.md](../../.github/instructions/go_profile.instructions.md) | Perfil de Go: framework, pattern, librerías | Desarrolladores Go |
 | [.github/instructions/parcel_boundaries.instructions.md](../../.github/instructions/parcel_boundaries.instructions.md) | Límites de dominio y módulos de Parcel | Arquitectos, Desarrolladores |
+| [docs/architecture_diagram.md](./architecture_diagram.md) | 🆕 Diagrama visual completo del sistema | Arquitectos, Desarrolladores, PMs |
+| [docs/persistence_architecture.md](./persistence_architecture.md) | 🆕 Arquitectura de persistencia (PostgreSQL + memoria) | Arquitectos, Desarrolladores |
 
 ---
 
