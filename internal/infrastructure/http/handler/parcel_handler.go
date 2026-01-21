@@ -49,19 +49,19 @@ func NewParcelHandler(
 }
 
 // Create godoc
-// @Summary Crear envío
-// @Description Crea un nuevo envío (parcel)
+// @Summary Crear nuevo envío
+// @Description Crea un nuevo envío en estado CREATED. Requiere tipos de envío, oficinas origen/destino, personas (remitente/destinatario) y opcionales notes. El package_key permite proteger operaciones posteriores con confirmación.
 // @Tags Parcels
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param payload body CreateParcelRequest true "Create parcel"
-// @Success 201 {object} handler.CreateParcelResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param payload body dto.CreateParcelRequest true "Solicitud con datos del envío (shipment_type, offices, personas requeridas)"
+// @Success 201 {object} handler.CreateParcelResponseEnvelope "Envío creado exitosamente en estado CREATED"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: payload malformado o valores inválidos"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: offices o personas no válidas, shipment_type no soportado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels [post]
 func (h *ParcelHandler) Create(c *gin.Context) {
 	var req dto.CreateParcelRequest
@@ -117,26 +117,26 @@ func (h *ParcelHandler) Create(c *gin.Context) {
 
 // List godoc
 // @Summary Listar envíos
-// @Description Lista envíos con filtros y paginación
+// @Description Lista envíos del tenant con filtros y paginación
 // @Tags Parcels
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param q query string false "Search by tracking_code or parcel id"
-// @Param status query string false "Status"
-// @Param origin_office_id query string false "Origin office id"
-// @Param destination_office_id query string false "Destination office id"
-// @Param sender_person_id query string false "Sender person id"
-// @Param recipient_person_id query string false "Recipient person id"
-// @Param vehicle_id query string false "Vehicle id"
-// @Param from_created_at query string false "From created_at (RFC3339)"
-// @Param to_created_at query string false "To created_at (RFC3339)"
-// @Param limit query int false "Limit"
-// @Param offset query int false "Offset"
+// @Param q query string false "Búsqueda por código o ID"
+// @Param status query string false "Filtrar por estado (CREATED, REGISTERED, BOARDED, EN_ROUTE, ARRIVED, DELIVERED)"
+// @Param origin_office_id query string false "Filtrar por oficina origen (UUID)"
+// @Param destination_office_id query string false "Filtrar por oficina destino (UUID)"
+// @Param sender_person_id query string false "Filtrar por remitente (UUID)"
+// @Param recipient_person_id query string false "Filtrar por destinatario (UUID)"
+// @Param vehicle_id query string false "Filtrar por vehículo (UUID)"
+// @Param from_created_at query string false "Desde (RFC3339)"
+// @Param to_created_at query string false "Hasta (RFC3339)"
+// @Param limit query int false "Límite de resultados (default: 50, max: 200)"
+// @Param offset query int false "Desplazamiento (default: 0)"
 // @Success 200 {object} handler.ParcelListResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Failure 400 {object} handler.ErrorResponse "Parámetros inválidos"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno"
 // @Router /parcels [get]
 func (h *ParcelHandler) List(c *gin.Context) {
 	tenantID, _ := c.Get("tenant_id")
@@ -342,18 +342,18 @@ func (h *ParcelHandler) List(c *gin.Context) {
 }
 
 // GetByID godoc
-// @Summary Obtener envío
-// @Description Obtiene un envío por id
+// @Summary Obtener detalles completos del envío
+// @Description Devuelve información detallada de un envío incluyendo estado actual, timeline de transiciones, asignación de vehículo/viaje, y auditoria (timestamps y usuarios responsables).
 // @Tags Parcels
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.CreateParcelResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.CreateParcelResponseEnvelope "Detalles del envío"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id} [get]
 func (h *ParcelHandler) GetByID(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -435,18 +435,18 @@ func (h *ParcelHandler) GetByID(c *gin.Context) {
 
 // Register godoc
 // @Summary Registrar envío
-// @Description Cambia estado a registrado
+// @Description Transiciona el envío de estado CREATED a REGISTERED. Marca el envío como listo para ser embarcado en un vehículo. Requiere confirmación de package_key si fue definido al crear.
 // @Tags Parcels
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.CreateParcelResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.CreateParcelResponseEnvelope "Envío registrado exitosamente (estado: REGISTERED)"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: transición de estado no permitida (estado actual no es CREATED)"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/register [post]
 func (h *ParcelHandler) Register(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -531,19 +531,21 @@ func (h *ParcelHandler) Register(c *gin.Context) {
 }
 
 // Board godoc
-// @Summary Embarcar envío
-// @Description Cambia estado a embarcado
+// @Summary Embarcar envío en vehículo
+// @Description Transiciona el envío de estado REGISTERED a BOARDED. Asigna el envío a un vehículo específico y opcionalmente a un viaje/trip. Captura origen_office_id para validación de ruta. Soporta fecha estimada de salida (departure_at).
 // @Tags Parcels
+// @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.CreateParcelResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param payload body dto.BoardParcelRequest true "Solicitud con UUID de vehículo (requerido), trip_id y departure_at (opcionales)"
+// @Success 200 {object} handler.CreateParcelResponseEnvelope "Envío embarcado exitosamente (estado: BOARDED)"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido, payload malformado o UUID inválidos"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: transición no permitida, vehículo inválido o estado incompatible"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/board [post]
 func (h *ParcelHandler) Board(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -672,19 +674,21 @@ func (h *ParcelHandler) Board(c *gin.Context) {
 }
 
 // Depart godoc
-// @Summary Salida de envío
-// @Description Cambia estado a en ruta
+// @Summary Registrar salida (departure) del envío
+// @Description Transiciona el envío de estado BOARDED a EN_ROUTE. Confirma la partida real del vehículo con el envío a bordo. Permite especificar office de salida y timestamp de partida. El vehículo puede ser re-confirmado.
 // @Tags Parcels
+// @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.CreateParcelResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param payload body dto.DepartParcelRequest true "Solicitud con office de salida (requerido) y opcionalmente vehículo y timestamp de partida"
+// @Success 200 {object} handler.CreateParcelResponseEnvelope "Envío en ruta exitosamente (estado: EN_ROUTE)"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido o payload malformado"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: transición no permitida o estado incompatible"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/depart [post]
 func (h *ParcelHandler) Depart(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -805,19 +809,21 @@ func (h *ParcelHandler) Depart(c *gin.Context) {
 }
 
 // Arrive godoc
-// @Summary Llegada a destino
-// @Description Cambia estado a en oficina destino
+// @Summary Registrar llegada del envío a destino
+// @Description Transiciona el envío de estado EN_ROUTE a ARRIVED. Marca la llegada del envío a la oficina de destino final. Requiere confirmación de destination_office_id.
 // @Tags Parcels
+// @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.CreateParcelResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param payload body dto.ArriveParcelRequest true "Solicitud con destination_office_id (requerido)"
+// @Success 200 {object} handler.CreateParcelResponseEnvelope "Envío llegado a destino exitosamente (estado: ARRIVED)"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido o payload malformado"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: transición no permitida o estado incompatible"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/arrive [post]
 func (h *ParcelHandler) Arrive(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -915,19 +921,21 @@ func (h *ParcelHandler) Arrive(c *gin.Context) {
 }
 
 // Deliver godoc
-// @Summary Entregar envío
-// @Description Cambia estado a entregado
+// @Summary Entregar envío al destinatario
+// @Description Transiciona el envío de estado ARRIVED a DELIVERED. Marca la finalización de la cadena de custodia. Requiere confirmación de package_key para seguridad. Captura usuario responsable de la entrega.
 // @Tags Parcels
+// @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.CreateParcelResponseEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param payload body dto.DeliverParcelRequest true "Solicitud con package_key para confirmación (requerido)"
+// @Success 200 {object} handler.CreateParcelResponseEnvelope "Envío entregado exitosamente (estado: DELIVERED)"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido o payload malformado"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: transición no permitida, package_key inválido o estado incompatible"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/deliver [post]
 func (h *ParcelHandler) Deliver(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))

@@ -53,21 +53,21 @@ func NewParcelPaymentHandler(upsertUC *paymentusecase.UpsertParcelPaymentUseCase
 }
 
 // Upsert godoc
-// @Summary Upsert pago
-// @Description Crea o actualiza el pago del envío
+// @Summary Crear o actualizar información de pago
+// @Description Crea o actualiza la información de pago del envío. Incluye tipo de pago, monto, moneda, canal, oficina y datos de caja. Soporta múltiples formas de pago (CASH, FOB, CARD, TRANSFER, EWALLET, FREE, COLLECT_ON_DELIVERY). El estado inicial es PENDING.
 // @Tags ParcelPayments
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Param payload body UpsertParcelPaymentRequest true "Payment"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param payload body UpsertParcelPaymentRequest true "Solicitud con datos de pago (monto requerido, type de pago, moneda por defecto PEN)"
+// @Success 200 {object} handler.AnyDataEnvelope "Pago creado o actualizado exitosamente"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido, payload malformado o valores inválidos"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: estado incompatible o envío no permite esta operación"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/payment [put]
 func (h *ParcelPaymentHandler) Upsert(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -146,18 +146,18 @@ func (h *ParcelPaymentHandler) Upsert(c *gin.Context) {
 }
 
 // Get godoc
-// @Summary Obtener pago
-// @Description Obtiene el pago del envío
+// @Summary Obtener información de pago del envío
+// @Description Devuelve los detalles completos del pago registrado para un envío. Incluye tipo de pago, monto, estado (PENDING/PAID), moneda, canal, oficina y datos de caja.
 // @Tags ParcelPayments
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Información de pago obtenida"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío o pago no encontrado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/payment [get]
 func (h *ParcelPaymentHandler) Get(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -213,19 +213,19 @@ func (h *ParcelPaymentHandler) Get(c *gin.Context) {
 }
 
 // MarkPaid godoc
-// @Summary Marcar pagado
-// @Description Marca el pago como pagado (origen o destino según tipo)
+// @Summary Marcar pago como realizado
+// @Description Transiciona el pago a estado PAID. Intégrase con el servicio de caja (CASHBOX) para registrar la transacción y confirmar la recaudación. Captura el user_id del operador que marca el pago.
 // @Tags ParcelPayments
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Pago marcado como realizado exitosamente"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío o pago no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: pago ya realizado o estado no permitido"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor o fallo de integración con caja"
 // @Router /parcels/{id}/payment/mark-paid [post]
 func (h *ParcelPaymentHandler) MarkPaid(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))

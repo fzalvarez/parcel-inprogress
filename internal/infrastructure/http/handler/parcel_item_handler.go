@@ -52,21 +52,21 @@ func NewParcelItemHandler(addUC *itemusecase.AddParcelItemUseCase, listUC *itemu
 }
 
 // Add godoc
-// @Summary Agregar item
-// @Description Agrega un item al envío
+// @Summary Agregar artículo (item) al envío
+// @Description Agrega un bulto/artículo al envío con cálculo automático de peso facturable y precio. Soporta dimensiones opcionales (largo, ancho, alto) para cálculo de peso volumétrico. El peso facturable se calcula como máximo entre peso real y volumétrico (si aplica según configuración del tenant). El precio unitario se busca mediante reglas de precios jerárquicas.
 // @Tags ParcelItems
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Param payload body AddParcelItemRequest true "Add item"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param payload body CreateParcelItemRequest true "Datos del item (descripción y peso requeridos, dimensiones opcionales para volumétrico)"
+// @Success 201 {object} handler.AnyDataEnvelope "Item creado exitosamente con peso y precio calculados"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido, payload malformado o valores inválidos"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: regla de precios no encontrada (sugerencia: use comodines *) o estado del envío no permite agregar items"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/items [post]
 func (h *ParcelItemHandler) Add(c *gin.Context) {
 	parcelIDStr := strings.TrimSpace(c.Param("id"))
@@ -134,18 +134,18 @@ func (h *ParcelItemHandler) Add(c *gin.Context) {
 }
 
 // List godoc
-// @Summary Listar items
-// @Description Lista items del envío
+// @Summary Listar artículos del envío
+// @Description Lista todos los artículos (items/bultos) agregados a un envío. Devuelve detalles de cada item incluyendo dimensiones, pesos calculados (real, volumétrico, facturable) y precio unitario.
 // @Tags ParcelItems
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Lista de items del envío"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/items [get]
 func (h *ParcelItemHandler) List(c *gin.Context) {
 	parcelIDStr := strings.TrimSpace(c.Param("id"))
@@ -192,20 +192,20 @@ func (h *ParcelItemHandler) List(c *gin.Context) {
 }
 
 // Delete godoc
-// @Summary Eliminar item
-// @Description Elimina un item del envío
+// @Summary Eliminar artículo del envío
+// @Description Elimina un artículo específico agregado a un envío. Solo permitido en ciertos estados del envío (antes de registro o bajo condiciones especiales).
 // @Tags ParcelItems
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Param item_id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param item_id path string true "UUID del item a eliminar" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Item eliminado exitosamente"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id o item_id inválidos"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío o item no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: no se puede eliminar item en este estado del envío"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/items/{item_id} [delete]
 func (h *ParcelItemHandler) Delete(c *gin.Context) {
 	parcelIDStr := strings.TrimSpace(c.Param("id"))

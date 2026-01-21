@@ -41,21 +41,21 @@ func NewParcelDocumentsHandler(registerUC *docusecase.RegisterPrintUseCase, prin
 }
 
 // RegisterPrint godoc
-// @Summary Registrar impresión
-// @Description Registra una impresión de documento (MVP)
+// @Summary Registrar impresión de documento
+// @Description Registra un evento de impresión de documento (LABEL, RECEIPT, MANIFEST, GUIDE) para un envío. El registro incluye tipo de documento, timestamp y usuario que realizó la impresión.
 // @Tags ParcelDocuments
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Param payload body RegisterPrintRequest true "Document print"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Param payload body RegisterPrintRequest true "Solicitud de impresión con tipo de documento"
+// @Success 200 {object} handler.AnyDataEnvelope "Impresión registrada exitosamente"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido, payload malformado o tipo de documento no permitido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: estado incompatible o límite de impresiones alcanzado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/documents/print [post]
 func (h *ParcelDocumentsHandler) RegisterPrint(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -112,17 +112,17 @@ func (h *ParcelDocumentsHandler) RegisterPrint(c *gin.Context) {
 }
 
 // ListPrints godoc
-// @Summary Listar impresiones
-// @Description Lista impresiones registradas por envío
+// @Summary Listar impresiones de envío
+// @Description Lista todos los registros de impresión asociados a un envío específico. Incluye información de timestamp, tipo de documento e usuario que realizó la impresión.
 // @Tags ParcelDocuments
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Lista de registros de impresión"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/documents/prints [get]
 func (h *ParcelDocumentsHandler) ListPrints(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))

@@ -21,18 +21,18 @@ func NewParcelTrackingHandler(listUC *usecase.ListTrackingUseCase) *ParcelTracki
 }
 
 // ListByParcelID godoc
-// @Summary Listar tracking
-// @Description Lista eventos de tracking del envío
+// @Summary Listar historial completo de tracking del envío
+// @Description Lista todos los eventos y cambios de estado registrados para un envío en orden cronológico. Incluye tipo de evento, timestamp, usuario responsable y metadata adicional. Útil para auditoría, debugging y reconstrucción de la cadena de custodia.
 // @Tags ParcelTracking
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Historial de tracking del envío"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/tracking [get]
 func (h *ParcelTrackingHandler) ListByParcelID(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))

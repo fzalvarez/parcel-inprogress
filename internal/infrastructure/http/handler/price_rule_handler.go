@@ -50,18 +50,18 @@ func NewPriceRuleHandler(createUC *pricingusecase.CreatePriceRuleUseCase, update
 
 // Create godoc
 // @Summary Crear regla de precios
-// @Description Crea una regla de precios por tenant
+// @Description Crea una nueva regla de precios para el tenant. Soporta comodines (*) en ShipmentType, OriginOfficeID y DestinationOfficeID. La prioridad (0-100) determina el orden de evaluación en búsquedas jerárquicas: específicas primero, luego comodines. Ejemplos: "STANDARD", "*" para cualquier tipo; "12345" (UUID), "*" para cualquier oficina.
 // @Tags Pricing
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param payload body PriceRuleRequest true "Price rule"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param payload body PriceRuleRequest true "Solicitud de creación de regla con campos de envío, precio y prioridad"
+// @Success 200 {object} handler.AnyDataEnvelope "Regla de precios creada exitosamente"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: payload malformado, valores inválidos o formato incorrecto"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: regla duplicada o combinación de parámetros duplicada"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /pricing/rules [post]
 func (h *PriceRuleHandler) Create(c *gin.Context) {
 	var req PriceRuleRequest
@@ -98,20 +98,20 @@ func (h *PriceRuleHandler) Create(c *gin.Context) {
 
 // Update godoc
 // @Summary Actualizar regla de precios
-// @Description Actualiza una regla de precios
+// @Description Actualiza una regla de precios existente. Permite modificar tipo de envío, oficinas, unidad de precio, precio, moneda y prioridad. Los comodines (*) siguen siendo soportados en campos de rutas. La prioridad define el orden en búsquedas jerárquicas.
 // @Tags Pricing
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Param payload body PriceRuleRequest true "Price rule"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 409 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID de la regla" Format(uuid)
+// @Param payload body PriceRuleRequest true "Solicitud de actualización con nuevos valores"
+// @Success 200 {object} handler.AnyDataEnvelope "Regla de precios actualizada exitosamente"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido, payload malformado o valores inválidos"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Regla no encontrada"
+// @Failure 409 {object} handler.ErrorResponse "Conflicto: nueva combinación duplicada u estado incompatible"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /pricing/rules/{id} [put]
 func (h *PriceRuleHandler) Update(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))
@@ -156,14 +156,14 @@ func (h *PriceRuleHandler) Update(c *gin.Context) {
 
 // List godoc
 // @Summary Listar reglas de precios
-// @Description Lista reglas de precios por tenant
+// @Description Lista todas las reglas de precios activas del tenant actual. Incluye reglas específicas y comodines. Útil para auditoría, depuración y validación de cadenas de precios.
 // @Tags Pricing
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Success 200 {object} handler.AnyDataEnvelope "Lista de reglas de precios del tenant"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /pricing/rules [get]
 func (h *PriceRuleHandler) List(c *gin.Context) {
 	tenantID, _ := c.Get("tenant_id")

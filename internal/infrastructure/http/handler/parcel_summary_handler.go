@@ -23,18 +23,18 @@ func NewParcelSummaryHandler(uc *coreusecase.GetParcelSummaryUseCase) *ParcelSum
 }
 
 // Get godoc
-// @Summary Resumen operativo
-// @Description Devuelve parcel + items + payment + tracking
+// @Summary Resumen operativo completo del envío
+// @Description Devuelve una vista consolidada 360° con detalles del envío (parcel), artículos (items), información de pago (payment) e historial de tracking (últimas 20 operaciones). Ideal para dashboards y seguimiento en tiempo real.
 // @Tags Parcels
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param id path string true "UUID" Format(uuid)
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 404 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param id path string true "UUID del envío" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Resumen del envío con todos los detalles"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: id inválido"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Envío no encontrado"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /parcels/{id}/summary [get]
 func (h *ParcelSummaryHandler) Get(c *gin.Context) {
 	idStr := strings.TrimSpace(c.Param("id"))

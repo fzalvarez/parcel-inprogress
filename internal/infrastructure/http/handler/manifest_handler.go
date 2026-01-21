@@ -26,18 +26,19 @@ func NewManifestHandler(buildUC *manifestusecase.BuildManifestPreviewUseCase) *M
 }
 
 // PreviewPost godoc
-// @Summary Preview manifest
-// @Description Construye un manifiesto virtual (preview)
+// @Summary Construir preview de manifiesto (POST)
+// @Description Construye un manifiesto virtual (preview) basado en envíos pendientes entre oficinas. Acepta vehículo, oficina de origen y destino. El preview incluye listado de envíos, totales (cantidad, peso, volumen) y detalles de rutas.
 // @Tags Manifests
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Param payload body any true "Preview request"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 400 {object} handler.ErrorResponse
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param payload body ManifestPreviewRequest true "Solicitud de preview con IDs de vehículo y oficinas"
+// @Success 200 {object} handler.AnyDataEnvelope "Preview de manifiesto generado"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: UUID inválido, payload malformado o parámetros faltantes"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Vehículo u oficina no encontrados"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /manifests/preview [post]
 func (h *ManifestHandler) PreviewPost(c *gin.Context) {
 	var req ManifestPreviewRequest
@@ -81,15 +82,20 @@ func (h *ManifestHandler) PreviewPost(c *gin.Context) {
 }
 
 // PreviewGet godoc
-// @Summary Preview manifest (GET)
-// @Description Obtiene el último preview en memoria
+// @Summary Construir preview de manifiesto (GET)
+// @Description Construye un manifiesto virtual (preview) basado en parámetros de query. Acepta vehículo, oficina de origen y destino. El preview incluye listado de envíos, totales (cantidad, peso, volumen) y detalles de rutas.
 // @Tags Manifests
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string false "Bearer token"
-// @Success 200 {object} handler.AnyDataEnvelope
-// @Failure 401 {object} handler.ErrorResponse
-// @Failure 500 {object} handler.ErrorResponse
+// @Param vehicle_id query string true "UUID del vehículo" Format(uuid)
+// @Param origin_office_id query string true "UUID de la oficina de origen" Format(uuid)
+// @Param destination_office_id query string true "UUID de la oficina de destino" Format(uuid)
+// @Success 200 {object} handler.AnyDataEnvelope "Preview de manifiesto generado"
+// @Failure 400 {object} handler.ErrorResponse "Validación fallida: UUID inválido o parámetros faltantes"
+// @Failure 401 {object} handler.ErrorResponse "No autorizado: token inválido o credenciales faltantes"
+// @Failure 404 {object} handler.ErrorResponse "Vehículo u oficina no encontrados"
+// @Failure 500 {object} handler.ErrorResponse "Error interno del servidor"
 // @Router /manifests/preview [get]
 func (h *ManifestHandler) PreviewGet(c *gin.Context) {
 	vehicleID := strings.TrimSpace(c.Query("vehicle_id"))
