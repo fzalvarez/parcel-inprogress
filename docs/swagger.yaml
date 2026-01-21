@@ -1,0 +1,1482 @@
+definitions:
+  apperror.AppError:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  dto.ArriveParcelRequest:
+    properties:
+      destination_office_id:
+        type: string
+    type: object
+  dto.BoardParcelRequest:
+    properties:
+      departure_at:
+        type: string
+      origin_office_id:
+        type: string
+      trip_id:
+        type: string
+      vehicle_id:
+        type: string
+    required:
+    - vehicle_id
+    type: object
+  dto.CreateParcelRequest:
+    properties:
+      destination_office_id:
+        type: string
+      notes:
+        maxLength: 200
+        type: string
+      origin_office_id:
+        type: string
+      package_key:
+        maxLength: 50
+        type: string
+      package_key_confirm:
+        maxLength: 50
+        type: string
+      recipient_person_id:
+        type: string
+      sender_person_id:
+        type: string
+      shipment_type:
+        type: string
+    required:
+    - destination_office_id
+    - origin_office_id
+    - recipient_person_id
+    - sender_person_id
+    - shipment_type
+    type: object
+  dto.CreateParcelResponse:
+    properties:
+      arrived_at:
+        type: string
+      arrived_by_user_id:
+        type: string
+      boarded_at:
+        type: string
+      boarded_by_user_id:
+        type: string
+      boarded_departure_at:
+        type: string
+      boarded_trip_id:
+        type: string
+      boarded_vehicle_id:
+        type: string
+      created_at:
+        type: string
+      delivered_at:
+        type: string
+      delivered_by_user_id:
+        type: string
+      departed_at:
+        type: string
+      departed_by_user_id:
+        type: string
+      destination_office_id:
+        type: string
+      id:
+        type: string
+      notes:
+        type: string
+      origin_office_id:
+        type: string
+      recipient_person_id:
+        type: string
+      registered_at:
+        type: string
+      sender_person_id:
+        type: string
+      shipment_type:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.DeliverParcelRequest:
+    properties:
+      package_key:
+        maxLength: 50
+        type: string
+    type: object
+  dto.DepartParcelRequest:
+    properties:
+      departed_at:
+        type: string
+      departure_office_id:
+        type: string
+      vehicle_id:
+        type: string
+    type: object
+  dto.ParcelListPagination:
+    properties:
+      count:
+        type: integer
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  dto.ParcelListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.CreateParcelResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.ParcelListPagination'
+    type: object
+  handler.AnyDataEnvelope:
+    properties:
+      data: {}
+      success:
+        example: true
+        type: boolean
+    type: object
+  handler.CreateParcelItemRequest:
+    properties:
+      content_type:
+        maxLength: 100
+        type: string
+      description:
+        maxLength: 200
+        type: string
+      height_cm:
+        maximum: 9999
+        minimum: 0.01
+        type: number
+      length_cm:
+        maximum: 9999
+        minimum: 0.01
+        type: number
+      notes:
+        maxLength: 300
+        type: string
+      quantity:
+        maximum: 9999
+        minimum: 1
+        type: integer
+      unit_price:
+        maximum: 999999
+        minimum: 0
+        type: number
+      weight_kg:
+        maximum: 9999
+        minimum: 0.01
+        type: number
+      width_cm:
+        maximum: 9999
+        minimum: 0.01
+        type: number
+    required:
+    - description
+    - quantity
+    - weight_kg
+    type: object
+  handler.CreateParcelResponseEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/dto.CreateParcelResponse'
+      success:
+        example: true
+        type: boolean
+    type: object
+  handler.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/apperror.AppError'
+      success:
+        example: false
+        type: boolean
+    type: object
+  handler.ManifestPreviewRequest:
+    properties:
+      destination_office_id:
+        type: string
+      origin_office_id:
+        type: string
+      vehicle_id:
+        type: string
+    required:
+    - destination_office_id
+    - origin_office_id
+    - vehicle_id
+    type: object
+  handler.ParcelListResponseEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/dto.ParcelListResponse'
+      success:
+        example: true
+        type: boolean
+    type: object
+  handler.PriceRuleRequest:
+    properties:
+      active:
+        type: boolean
+      currency:
+        enum:
+        - PEN
+        - USD
+        type: string
+      destination_office_id:
+        type: string
+      origin_office_id:
+        type: string
+      price:
+        type: number
+      priority:
+        maximum: 100
+        minimum: 0
+        type: integer
+      shipment_type:
+        type: string
+      unit:
+        enum:
+        - PER_KG
+        - PER_ITEM
+        type: string
+    required:
+    - currency
+    - destination_office_id
+    - origin_office_id
+    - price
+    - shipment_type
+    - unit
+    type: object
+  handler.RegisterPrintRequest:
+    properties:
+      document_type:
+        enum:
+        - LABEL
+        - RECEIPT
+        - MANIFEST
+        - GUIDE
+        type: string
+    required:
+    - document_type
+    type: object
+  handler.UpsertParcelPaymentRequest:
+    properties:
+      amount:
+        type: number
+      cashbox_id:
+        maxLength: 50
+        type: string
+      channel:
+        enum:
+        - COUNTER
+        - WEB
+        type: string
+      currency:
+        enum:
+        - PEN
+        - USD
+        type: string
+      notes:
+        maxLength: 200
+        type: string
+      office_id:
+        type: string
+      payment_type:
+        enum:
+        - CASH
+        - FOB
+        - CARD
+        - TRANSFER
+        - EWALLET
+        - FREE
+        - COLLECT_ON_DELIVERY
+        type: string
+      seller_user_id:
+        type: string
+    required:
+    - amount
+    - payment_type
+    type: object
+info:
+  contact: {}
+paths:
+  /manifests/preview:
+    get:
+      description: Construye un manifiesto virtual (preview) basado en parámetros
+        de query. Acepta vehículo, oficina de origen y destino. El preview incluye
+        listado de envíos, totales (cantidad, peso, volumen) y detalles de rutas.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del vehículo
+        format: uuid
+        in: query
+        name: vehicle_id
+        required: true
+        type: string
+      - description: UUID de la oficina de origen
+        format: uuid
+        in: query
+        name: origin_office_id
+        required: true
+        type: string
+      - description: UUID de la oficina de destino
+        format: uuid
+        in: query
+        name: destination_office_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Preview de manifiesto generado
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: UUID inválido o parámetros faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Vehículo u oficina no encontrados
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Construir preview de manifiesto (GET)
+      tags:
+      - Manifests
+    post:
+      consumes:
+      - application/json
+      description: Construye un manifiesto virtual (preview) basado en envíos pendientes
+        entre oficinas. Acepta vehículo, oficina de origen y destino. El preview incluye
+        listado de envíos, totales (cantidad, peso, volumen) y detalles de rutas.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: Solicitud de preview con IDs de vehículo y oficinas
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ManifestPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Preview de manifiesto generado
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: UUID inválido, payload malformado o parámetros
+            faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Vehículo u oficina no encontrados
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Construir preview de manifiesto (POST)
+      tags:
+      - Manifests
+  /parcels:
+    get:
+      description: Lista envíos del tenant con filtros y paginación
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: Búsqueda por código o ID
+        in: query
+        name: q
+        type: string
+      - description: Filtrar por estado (CREATED, REGISTERED, BOARDED, EN_ROUTE, ARRIVED,
+          DELIVERED)
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por oficina origen (UUID)
+        in: query
+        name: origin_office_id
+        type: string
+      - description: Filtrar por oficina destino (UUID)
+        in: query
+        name: destination_office_id
+        type: string
+      - description: Filtrar por remitente (UUID)
+        in: query
+        name: sender_person_id
+        type: string
+      - description: Filtrar por destinatario (UUID)
+        in: query
+        name: recipient_person_id
+        type: string
+      - description: Filtrar por vehículo (UUID)
+        in: query
+        name: vehicle_id
+        type: string
+      - description: Desde (RFC3339)
+        in: query
+        name: from_created_at
+        type: string
+      - description: Hasta (RFC3339)
+        in: query
+        name: to_created_at
+        type: string
+      - description: 'Límite de resultados (default: 50, max: 200)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Desplazamiento (default: 0)'
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ParcelListResponseEnvelope'
+        "400":
+          description: Parámetros inválidos
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: No autorizado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar envíos
+      tags:
+      - Parcels
+    post:
+      consumes:
+      - application/json
+      description: Crea un nuevo envío en estado CREATED. Requiere tipos de envío,
+        oficinas origen/destino, personas (remitente/destinatario) y opcionales notes.
+        El package_key permite proteger operaciones posteriores con confirmación.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: Solicitud con datos del envío (shipment_type, offices, personas
+          requeridas)
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateParcelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Envío creado exitosamente en estado CREATED
+          schema:
+            $ref: '#/definitions/handler.CreateParcelResponseEnvelope'
+        "400":
+          description: 'Validación fallida: payload malformado o valores inválidos'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: offices o personas no válidas, shipment_type no
+            soportado'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Crear nuevo envío
+      tags:
+      - Parcels
+  /parcels/{id}:
+    get:
+      description: Devuelve información detallada de un envío incluyendo estado actual,
+        timeline de transiciones, asignación de vehículo/viaje, y auditoria (timestamps
+        y usuarios responsables).
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Detalles del envío
+          schema:
+            $ref: '#/definitions/handler.CreateParcelResponseEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Obtener detalles completos del envío
+      tags:
+      - Parcels
+  /parcels/{id}/arrive:
+    post:
+      consumes:
+      - application/json
+      description: Transiciona el envío de estado EN_ROUTE a ARRIVED. Marca la llegada
+        del envío a la oficina de destino final. Requiere confirmación de destination_office_id.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Solicitud con destination_office_id (requerido)
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ArriveParcelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Envío llegado a destino exitosamente (estado: ARRIVED)'
+          schema:
+            $ref: '#/definitions/handler.CreateParcelResponseEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido o payload malformado'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: transición no permitida o estado incompatible'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Registrar llegada del envío a destino
+      tags:
+      - Parcels
+  /parcels/{id}/board:
+    post:
+      consumes:
+      - application/json
+      description: Transiciona el envío de estado REGISTERED a BOARDED. Asigna el
+        envío a un vehículo específico y opcionalmente a un viaje/trip. Captura origen_office_id
+        para validación de ruta. Soporta fecha estimada de salida (departure_at).
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Solicitud con UUID de vehículo (requerido), trip_id y departure_at
+          (opcionales)
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BoardParcelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Envío embarcado exitosamente (estado: BOARDED)'
+          schema:
+            $ref: '#/definitions/handler.CreateParcelResponseEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido, payload malformado o UUID
+            inválidos'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: transición no permitida, vehículo inválido o estado
+            incompatible'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Embarcar envío en vehículo
+      tags:
+      - Parcels
+  /parcels/{id}/deliver:
+    post:
+      consumes:
+      - application/json
+      description: Transiciona el envío de estado ARRIVED a DELIVERED. Marca la finalización
+        de la cadena de custodia. Requiere confirmación de package_key para seguridad.
+        Captura usuario responsable de la entrega.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Solicitud con package_key para confirmación (requerido)
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DeliverParcelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Envío entregado exitosamente (estado: DELIVERED)'
+          schema:
+            $ref: '#/definitions/handler.CreateParcelResponseEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido o payload malformado'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: transición no permitida, package_key inválido o
+            estado incompatible'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Entregar envío al destinatario
+      tags:
+      - Parcels
+  /parcels/{id}/depart:
+    post:
+      consumes:
+      - application/json
+      description: Transiciona el envío de estado BOARDED a EN_ROUTE. Confirma la
+        partida real del vehículo con el envío a bordo. Permite especificar office
+        de salida y timestamp de partida. El vehículo puede ser re-confirmado.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Solicitud con office de salida (requerido) y opcionalmente vehículo
+          y timestamp de partida
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DepartParcelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Envío en ruta exitosamente (estado: EN_ROUTE)'
+          schema:
+            $ref: '#/definitions/handler.CreateParcelResponseEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido o payload malformado'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: transición no permitida o estado incompatible'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Registrar salida (departure) del envío
+      tags:
+      - Parcels
+  /parcels/{id}/documents/print:
+    post:
+      consumes:
+      - application/json
+      description: Registra un evento de impresión de documento (LABEL, RECEIPT, MANIFEST,
+        GUIDE) para un envío. El registro incluye tipo de documento, timestamp y usuario
+        que realizó la impresión.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Solicitud de impresión con tipo de documento
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterPrintRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Impresión registrada exitosamente
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido, payload malformado o tipo
+            de documento no permitido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: estado incompatible o límite de impresiones alcanzado'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Registrar impresión de documento
+      tags:
+      - ParcelDocuments
+  /parcels/{id}/documents/prints:
+    get:
+      description: Lista todos los registros de impresión asociados a un envío específico.
+        Incluye información de timestamp, tipo de documento e usuario que realizó
+        la impresión.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de registros de impresión
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar impresiones de envío
+      tags:
+      - ParcelDocuments
+  /parcels/{id}/items:
+    get:
+      description: Lista todos los artículos (items/bultos) agregados a un envío.
+        Devuelve detalles de cada item incluyendo dimensiones, pesos calculados (real,
+        volumétrico, facturable) y precio unitario.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de items del envío
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar artículos del envío
+      tags:
+      - ParcelItems
+    post:
+      consumes:
+      - application/json
+      description: Agrega un bulto/artículo al envío con cálculo automático de peso
+        facturable y precio. Soporta dimensiones opcionales (largo, ancho, alto) para
+        cálculo de peso volumétrico. El peso facturable se calcula como máximo entre
+        peso real y volumétrico (si aplica según configuración del tenant). El precio
+        unitario se busca mediante reglas de precios jerárquicas.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Datos del item (descripción y peso requeridos, dimensiones opcionales
+          para volumétrico)
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateParcelItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Item creado exitosamente con peso y precio calculados
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido, payload malformado o valores
+            inválidos'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: regla de precios no encontrada (sugerencia: use
+            comodines *) o estado del envío no permite agregar items'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Agregar artículo (item) al envío
+      tags:
+      - ParcelItems
+  /parcels/{id}/items/{item_id}:
+    delete:
+      description: Elimina un artículo específico agregado a un envío. Solo permitido
+        en ciertos estados del envío (antes de registro o bajo condiciones especiales).
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: UUID del item a eliminar
+        format: uuid
+        in: path
+        name: item_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Item eliminado exitosamente
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id o item_id inválidos'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío o item no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: no se puede eliminar item en este estado del envío'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Eliminar artículo del envío
+      tags:
+      - ParcelItems
+  /parcels/{id}/payment:
+    get:
+      description: Devuelve los detalles completos del pago registrado para un envío.
+        Incluye tipo de pago, monto, estado (PENDING/PAID), moneda, canal, oficina
+        y datos de caja.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Información de pago obtenida
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío o pago no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Obtener información de pago del envío
+      tags:
+      - ParcelPayments
+    put:
+      consumes:
+      - application/json
+      description: Crea o actualiza la información de pago del envío. Incluye tipo
+        de pago, monto, moneda, canal, oficina y datos de caja. Soporta múltiples
+        formas de pago (CASH, FOB, CARD, TRANSFER, EWALLET, FREE, COLLECT_ON_DELIVERY).
+        El estado inicial es PENDING.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Solicitud con datos de pago (monto requerido, type de pago, moneda
+          por defecto PEN)
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpsertParcelPaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pago creado o actualizado exitosamente
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido, payload malformado o valores
+            inválidos'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: estado incompatible o envío no permite esta operación'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Crear o actualizar información de pago
+      tags:
+      - ParcelPayments
+  /parcels/{id}/payment/mark-paid:
+    post:
+      description: Transiciona el pago a estado PAID. Intégrase con el servicio de
+        caja (CASHBOX) para registrar la transacción y confirmar la recaudación. Captura
+        el user_id del operador que marca el pago.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pago marcado como realizado exitosamente
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío o pago no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: pago ya realizado o estado no permitido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor o fallo de integración con caja
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Marcar pago como realizado
+      tags:
+      - ParcelPayments
+  /parcels/{id}/register:
+    post:
+      description: Transiciona el envío de estado CREATED a REGISTERED. Marca el envío
+        como listo para ser embarcado en un vehículo. Requiere confirmación de package_key
+        si fue definido al crear.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Envío registrado exitosamente (estado: REGISTERED)'
+          schema:
+            $ref: '#/definitions/handler.CreateParcelResponseEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: transición de estado no permitida (estado actual
+            no es CREATED)'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Registrar envío
+      tags:
+      - Parcels
+  /parcels/{id}/summary:
+    get:
+      description: Devuelve una vista consolidada 360° con detalles del envío (parcel),
+        artículos (items), información de pago (payment) e historial de tracking (últimas
+        20 operaciones). Ideal para dashboards y seguimiento en tiempo real.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Resumen del envío con todos los detalles
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Resumen operativo completo del envío
+      tags:
+      - Parcels
+  /parcels/{id}/tracking:
+    get:
+      description: Lista todos los eventos y cambios de estado registrados para un
+        envío en orden cronológico. Incluye tipo de evento, timestamp, usuario responsable
+        y metadata adicional. Útil para auditoría, debugging y reconstrucción de la
+        cadena de custodia.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID del envío
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Historial de tracking del envío
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Envío no encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar historial completo de tracking del envío
+      tags:
+      - ParcelTracking
+  /pricing/rules:
+    get:
+      description: Lista todas las reglas de precios activas del tenant actual. Incluye
+        reglas específicas y comodines. Útil para auditoría, depuración y validación
+        de cadenas de precios.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de reglas de precios del tenant
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar reglas de precios
+      tags:
+      - Pricing
+    post:
+      consumes:
+      - application/json
+      description: 'Crea una nueva regla de precios para el tenant. Soporta comodines
+        (*) en ShipmentType, OriginOfficeID y DestinationOfficeID. La prioridad (0-100)
+        determina el orden de evaluación en búsquedas jerárquicas: específicas primero,
+        luego comodines. Ejemplos: "STANDARD", "*" para cualquier tipo; "12345" (UUID),
+        "*" para cualquier oficina.'
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: Solicitud de creación de regla con campos de envío, precio y
+          prioridad
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PriceRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Regla de precios creada exitosamente
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: payload malformado, valores inválidos
+            o formato incorrecto'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: regla duplicada o combinación de parámetros duplicada'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Crear regla de precios
+      tags:
+      - Pricing
+  /pricing/rules/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Actualiza una regla de precios existente. Permite modificar tipo
+        de envío, oficinas, unidad de precio, precio, moneda y prioridad. Los comodines
+        (*) siguen siendo soportados en campos de rutas. La prioridad define el orden
+        en búsquedas jerárquicas.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      - description: UUID de la regla
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Solicitud de actualización con nuevos valores
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PriceRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Regla de precios actualizada exitosamente
+          schema:
+            $ref: '#/definitions/handler.AnyDataEnvelope'
+        "400":
+          description: 'Validación fallida: id inválido, payload malformado o valores
+            inválidos'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 'No autorizado: token inválido o credenciales faltantes'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Regla no encontrada
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 'Conflicto: nueva combinación duplicada u estado incompatible'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Error interno del servidor
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Actualizar regla de precios
+      tags:
+      - Pricing
+swagger: "2.0"
